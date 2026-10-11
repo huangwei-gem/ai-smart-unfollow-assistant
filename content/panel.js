@@ -177,6 +177,7 @@ const messages = [
         const err = (resp && resp.error) || '未知错误';
         failBatches++;
         if (!firstErr) firstErr = err;
+        S.lastAiErr = err;
         log(`AI 请求失败（第 ${Math.floor(i / batchSize) + 1} 批）：${err}`);
         if (err && /未配置/.test(err)) {
           S.error = '未配置 AI 接口：请点击浏览器工具栏的插件图标，填写接口地址与 API Key 后重试。也可以手动编辑分类后直接执行。';
@@ -196,7 +197,7 @@ const messages = [
             if (c && CATEGORIES.includes(c)) { a.category = c; hit++; }
             else if (c) { a.category = UNSORTED; }
           }
-          log(`AI 分类完成一批：${chunk.length} 人中成功匹配 ${hit} 人`);
+          log(`AI 分类完成一批：${chunk.length} 人中成功匹配 ${hit} 人${resp.via ? `（接口：${resp.via}）` : ''}`);
         } catch (e) {
           log(`AI 返回解析失败，本批保留「未分类」：${e.message}`);
         }
@@ -210,7 +211,7 @@ const messages = [
 
     // 全部批次失败时，在面板上直接展示错误（不再只藏在折叠日志里）
     if (failBatches > 0 && done > 0 && failBatches * batchSize >= targets.length) {
-      S.error = `AI 分类请求失败：${firstErr}。请检查接口配置后重试，或手动编辑分类。`;
+      S.error = `AI 分类请求失败：${firstErr}。可点上方「一键修复接口权限」后重试，或手动编辑分类。`;
     }
 
     S.aiRunning = false;
@@ -582,7 +583,7 @@ const messages = [
     } else {
       inner = `
         <div class="aiuf-panel">
-          <div class="aiuf-head"><b>🧹 AI 智能取关助手 <span class="aiuf-ver">v1.4</span></b><span class="aiuf-close" id="aiuf-close">✕</span></div>
+          <div class="aiuf-head"><b>🧹 AI 智能取关助手 <span class="aiuf-ver">v1.5</span></b><span class="aiuf-close" id="aiuf-close">✕</span></div>
           <div class="aiuf-body">${renderBody(hint)}</div>
         </div>`;
     }
@@ -666,8 +667,9 @@ const messages = [
         <button class="aiuf-btn ghost" id="aiuf-ai-stop" ${aiBusy ? '' : 'disabled'}>停止分析</button>
         <input type="text" id="aiuf-filter" placeholder="搜索昵称…" value="${esc(S.nameFilter)}">
       </div>
-      ${S.error ? `<div class="aiuf-err">${esc(S.error)}</div>` : ''}
-      ${aiBusy && S.aiProgress ? `<div class="aiuf-progress"><div style="width:${S.aiProgress.total ? Math.round(S.aiProgress.done / S.aiProgress.total * 100) : 3}%"></div></div>` : ''}
+${S.error ? `<div class="aiuf-err">${esc(S.error)}</div>
+${/网络请求失败|Failed to fetch|CORS|所有接口均失败|权限/.test(S.error || '') ? '<button class="aiuf-btn" id="aiuf-fixperm" style="margin-top:6px">⚠ 一键修复接口权限</button>' : ''}` : ''}
+${aiBusy && S.aiProgress ? `<div class="aiuf-progress"><div style="width:${S.aiProgress.total ? Math.round(S.aiProgress.done / S.aiProgress.total * 100) : 3}%"></div></div>` : ''}
     `;
 
     for (const [cat, list] of groups) {
@@ -731,6 +733,25 @@ const messages = [
     if (aiRun) aiRun.onclick = () => runAiClassify();
     const aiStop = $('aiuf-ai-stop');
     if (aiStop) aiStop.onclick = () => { S.aiRunning = false; };
+
+    // 面板内一键修复接口权限（内容脚本里发起，用户点击即手势，无需打开弹窗）
+    const fixperm = $('aiuf-fixperm');
+    if (fixperm) fixperm.onclick = async () => {
+      try {
+        const origins = chrome.runtime.getManifest().host_permissions || [];
+        const granted = await chrome.permissions.request({ origins });
+        if (granted) {
+          S.error = '';
+          S.lastAiErr = '';
+          log('接口权限已修复，请重新点击 AI 分类。');
+        } else {
+          S.error = '权限修复未完成：请在弹窗中勾选全部网站访问权限。';
+        }
+      } catch (e) {
+        S.error = '权限修复失败：' + (e && e.message || e);
+      }
+      render();
+    };
 
     const filter = $('aiuf-filter');
     if (filter) {

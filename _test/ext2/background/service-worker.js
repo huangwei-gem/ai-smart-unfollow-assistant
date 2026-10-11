@@ -47,6 +47,19 @@ const FALLBACK_ENDPOINTS = [
 // 会话内记住当前可用的接口，下次请求优先使用（避免反复撞死接口）
 let PREFERRED_EP = null;
 
+// 接口健康度（持久化，SW 重启不丢失）：fail 次数越多排越后；成功后清零
+const HEALTH_KEY = 'ai_ep_health_v1';
+let EP_HEALTH = {};
+try {
+  chrome.storage.local.get(HEALTH_KEY).then((d) => { EP_HEALTH = d[HEALTH_KEY] || {}; }).catch(() => {});
+} catch (_) {}
+function recordHealth(name, ok) {
+  const h = EP_HEALTH[name] || { fail: 0, lastOk: 0 };
+  if (ok) { h.fail = 0; h.lastOk = Date.now(); } else { h.fail++; }
+  EP_HEALTH[name] = h;
+  try { chrome.storage.local.set({ [HEALTH_KEY]: EP_HEALTH }).catch(() => {}); } catch (_) {}
+}
+
 // ---------- 设置存取 ----------
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg.type === 'GET_SETTINGS') {
@@ -80,7 +93,9 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 });
 
 // ---------- 单个接口的请求（含限流重试与超时） ----------
-async function tryEndpoint(ep, payload, temperature) {
+// 稳定性策略：单请求 25s 超时（实测可用接口均在 15s 内，慢接口直接淘汰）；
+// 重试只给主接口，备用链上的接口失败立即换下一个，避免整条链被拖死。
+async function tryEndpoint(ep, payload, temperature, retries = 0) {
   const url = ep.baseUrl.replace(/\/+$/, '') + '/chat/completions';
   const body = {
     model: ep.model,
@@ -89,8 +104,7 @@ async function tryEndpoint(ep, payload, temperature) {
     stream: false,
   };
 
-  // 共享免费接口常见 429/5xx 限流：同一接口最多尝试 2 次（退避 3s）
-  const MAX_ATTEMPTS = 2;
+  const MAX_ATTEMPTS = retries + 1;
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     let resp;
     try {
@@ -101,16 +115,16 @@ async function tryEndpoint(ep, payload, temperature) {
           'Authorization': 'Bearer ' + ep.apiKey,
         },
         body: JSON.stringify(body),
-        signal: AbortSignal.timeout(45000), // 单请求 45s 超时，防止慢接口卡死整条链
+        signal: AbortSignal.timeout(25000), // 单请求 25s 超时，防止慢接口卡死整条链
       });
     } catch (e) {
-      const msg = (e && e.name === 'TimeoutError') ? '请求超时（45s）'
+      const msg = (e && e.name === 'TimeoutError') ? '请求超时（25s）'
         : '网络请求失败：' + (e && e.message || e);
       return { ok: false, error: msg, network: true };
     }
 
     if ((resp.status === 429 || resp.status >= 500) && attempt < MAX_ATTEMPTS) {
-      await new Promise((r) => setTimeout(r, attempt * 3000));
+      await new Promise((r) => setTimeout(r, attempt * 2000));
       continue;
     }
 
@@ -148,7 +162,7 @@ async function handleAiChat(payload) {
       apiKey: payload.apiKey,
       model: payload.model || settings.model,
     };
-    const r = await tryEndpoint(ep, payload, temperature);
+    const r = await tryEndpoint(ep, payload, temperature, 1);
     return r.ok ? r : Object.assign({ ok: false }, r);
   }
 
@@ -171,10 +185,14 @@ async function handleAiChat(payload) {
     const idx = chain.findIndex((e) => e.baseUrl === PREFERRED_EP.baseUrl && e.apiKey === PREFERRED_EP.apiKey);
     if (idx > 0) chain.unshift(...chain.splice(idx, 1));
   }
+  // 健康度排序：连续失败的接口排后面（Array.sort 稳定，同分保持原优先级）
+  const hf = (e) => (EP_HEALTH[e.name] || { fail: 0 }).fail;
+  chain.sort((a, b) => hf(a) - hf(b));
 
   const errors = [];
   for (const ep of chain) {
-    const r = await tryEndpoint(ep, payload, temperature);
+    const r = await tryEndpoint(ep, payload, temperature, ep === chain[0] ? 1 : 0);
+    recordHealth(ep.name, r.ok);
     if (r.ok) {
       PREFERRED_EP = ep;
       if (ep !== chain[0]) console.warn('[AI取关] 已自动切换到备用接口：', ep.name);
