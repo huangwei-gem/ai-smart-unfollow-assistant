@@ -20,6 +20,7 @@ const DEFAULT_SETTINGS = {
 
 // 备用接口链：主接口失败（CORS 被撤权 / 限流 / 宕机）时自动逐个切换。
 // 全部为 2026-10-10 严格实测通过（真实发送分类消息并校验返回合格 JSON）的模型。
+// 注：AMD MiniCPM5-2B 已移除（返回空内容）；opencode 仅 space-bunny-free 可用（其余 free 模型 403 FreeTierError）。
 const FALLBACK_ENDPOINTS = [
   { name: 'agnes-2.5-pro-beta', baseUrl: 'https://apihub.agnes-ai.com/v1', apiKey: 'sk-P5tZ5ljBOWyNi85fVzabu633Vp88cmP78d4G7279f6k9KNQj', model: 'agnes-2.5-pro-beta' },
   { name: 'agnes-3.0-flash', baseUrl: 'https://apihub.agnes-ai.com/v1', apiKey: 'sk-P5tZ5ljBOWyNi85fVzabu633Vp88cmP78d4G7279f6k9KNQj', model: 'agnes-3.0-flash' },
@@ -33,12 +34,13 @@ const FALLBACK_ENDPOINTS = [
   { name: 'AMD MiMo-V2.6-Flash', baseUrl: 'https://developer.amd.com.cn/radeon/api/v1', apiKey: 'rc-ee98411a4be1ae0e3522888415af21cad30c3940981af7fa', model: 'MiMo-V2.6-Flash' },
   { name: 'AMD DeepSeek-V4-Flash-Vision-Exp', baseUrl: 'https://developer.amd.com.cn/radeon/api/v1', apiKey: 'rc-ee98411a4be1ae0e3522888415af21cad30c3940981af7fa', model: 'DeepSeek-V4-Flash-Vision-Exp' },
   { name: 'AMD Qwen3.8-Flash-Next', baseUrl: 'https://developer.amd.com.cn/radeon/api/v1', apiKey: 'rc-ee98411a4be1ae0e3522888415af21cad30c3940981af7fa', model: 'Qwen3.8-Flash-Next' },
+  { name: 'AMD Gemma-4-31B-IT', baseUrl: 'https://developer.amd.com.cn/radeon/api/v1', apiKey: 'rc-ee98411a4be1ae0e3522888415af21cad30c3940981af7fa', model: 'Gemma-4-31B-IT' },
+  { name: 'opencode space-bunny-free', baseUrl: 'https://opencode.ai/zen/v1', apiKey: 'sk-NKrrY96pSd8PK2PFjiyb2oJJgNVg6X1iagE1hfPgeDQDECmBejcJAHxdn9Zt8quN', model: 'space-bunny-free' },
   { name: '商汤 glm-5.2', baseUrl: 'https://token.sensenova.cn/v1', apiKey: 'sk-F3WGt9cnsCrduZMyhyTYMEEKYJWE1Mzn', model: 'glm-5.2' },
   { name: '商汤 sensenova-6.8-flash-lite', baseUrl: 'https://token.sensenova.cn/v1', apiKey: 'sk-F3WGt9cnsCrduZMyhyTYMEEKYJWE1Mzn', model: 'sensenova-6.8-flash-lite' },
   { name: 'AMD Qwen3.8-27B', baseUrl: 'https://developer.amd.com.cn/radeon/api/v1', apiKey: 'rc-ee98411a4be1ae0e3522888415af21cad30c3940981af7fa', model: 'Qwen3.8-27B' },
   { name: 'NVIDIA z-ai/glm-5.3-flash', baseUrl: 'https://integrate.api.nvidia.com/v1', apiKey: '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', model: 'z-ai/glm-5.3-flash' },
   { name: 'AMD GLM-5.3-Flash', baseUrl: 'https://developer.amd.com.cn/radeon/api/v1', apiKey: 'rc-ee98411a4be1ae0e3522888415af21cad30c3940981af7fa', model: 'GLM-5.3-Flash' },
-  { name: 'AMD MiniCPM5-2B', baseUrl: 'https://developer.amd.com.cn/radeon/api/v1', apiKey: 'rc-ee98411a4be1ae0e3522888415af21cad30c3940981af7fa', model: 'MiniCPM5-2B' },
   { name: '点点笔记 dots3-note-prev', baseUrl: 'https://note3-prev-api.askdiandian.com/v1', apiKey: 'ak_iGxurHneP9HveEQ5cJRuAvZQDJeDI', model: 'dots3-note-prev' },
 ];
 
