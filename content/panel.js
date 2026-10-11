@@ -191,7 +191,7 @@ loadCache(kind).then((c) => { c[uid] = entry; saveCache(kind, c); });
     }
 
     const n = Math.max(1, Math.min(workers | 0 || 3, 6, totalBatches || 1));
-    log(`并发调度：${n} 路并行，共 ${totalBatches} 批（每批 ${batchSize} 人）`);
+    log(`并发调度：${n} 路并行，共 ${totalBatches} 批（每批 ${batchSize} 人）；首批 uid 样例：${items.slice(0, 3).map((a) => String(a.uid)).join(', ')}`);
     await Promise.all(Array.from({ length: n }, (_, w) => worker(w)));
     return { done, totalBatches };
   }
@@ -281,7 +281,7 @@ loadCache(kind).then((c) => { c[uid] = entry; saveCache(kind, c); });
             else if (c) { a.category = UNSORTED; }
           }
           saveCache('cls', cache);
-          log(`AI 分类完成一批：${chunk.length} 人中成功匹配 ${hit} 人${resp.via ? `（接口：${resp.via}）` : ''}`);
+          log(`AI 分类完成一批：${chunk.length} 人中成功匹配 ${hit} 人${resp.via ? `（接口：${resp.via}）` : ''}；返回样例：${JSON.stringify(arr[0] || {}).slice(0, 120)}`);
           newHit += hit;
         } catch (e) {
           failBatches++;
@@ -544,6 +544,7 @@ prompt: `你是一个社交媒体关注列表分析助手。下面是用户关�
             }
           }
           saveCache('dom', cache);
+          log(`领域分组完成一批：${chunk.length} 人中命中 ${hit} 人${resp.via ? `（接口：${resp.via}）` : ''}；返回样例：${JSON.stringify(arr[0] || {}).slice(0, 120)}`);
         } catch (e) {
           failBatches++;
           if (!firstErr) firstErr = 'AI 返回解析失败：' + e.message;
@@ -787,6 +788,7 @@ prompt: `你是一个社交媒体关注列表分析助手。下面是用户关�
 ${S.error ? `<div class="aiuf-err">${esc(S.error)}</div>
 ${/网络请求失败|Failed to fetch|CORS|所有接口均失败|权限/.test(S.error || '') ? '<button class="aiuf-btn" id="aiuf-fixperm" style="margin-top:6px">⚠ 一键修复接口权限</button>' : ''}` : ''}
 ${aiBusy && S.aiProgress ? `<div class="aiuf-progress"><div style="width:${S.aiProgress.total ? Math.round(S.aiProgress.done / S.aiProgress.total * 100) : 3}%"></div></div>` : ''}
+      ${renderLog(8)}
     `;
 
     for (const [cat, list] of groups) {
