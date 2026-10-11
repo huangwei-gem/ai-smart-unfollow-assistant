@@ -178,7 +178,8 @@ loadCache(kind).then((c) => { c[uid] = entry; saveCache(kind, c); });
         setProgress(done, total);
         let resp;
         try {
-          resp = await chrome.runtime.sendMessage({ type: 'AI_CHAT', payload: { messages: makeMessages(chunk) } });
+          const req = makeMessages(chunk);
+          resp = await chrome.runtime.sendMessage({ type: 'AI_CHAT', payload: { messages: req.messages, expect: req.expect } });
         } catch (e) {
           resp = { ok: false, error: String(e && e.message || e) };
         }
@@ -244,10 +245,13 @@ loadCache(kind).then((c) => { c[uid] = entry; saveCache(kind, c); });
       workers,
       shouldStop: () => S.aiRunning,
       setProgress: (d, t) => { S.aiProgress = { done: d, total: t }; render(); },
-      makeMessages: (chunk) => [
-        { role: 'system', content: '你是严谨的分类器，只输出要求的 JSON。' },
-        { role: 'user', content: PROMPT_TMPL + JSON.stringify(buildAiPayload(chunk)) },
-      ],
+      makeMessages: (chunk) => ({
+        messages: [
+          { role: 'system', content: '你是严谨的分类器，只输出要求的 JSON。' },
+          { role: 'user', content: PROMPT_TMPL + JSON.stringify(buildAiPayload(chunk)) },
+        ],
+        expect: { type: 'categories', categories: CATEGORIES },
+      }),
       onResult: (chunk, resp, no) => {
         if (!resp || !resp.ok) {
           const err = (resp && resp.error) || '未知错误';
@@ -404,10 +408,13 @@ prompt: `你是一个社交媒体关注列表分析助手。下面是用户关�
       workers,
       shouldStop: () => S.filtering,
       setProgress: (d, t) => { S.filterProgress = { done: d, total: t }; render(); },
-      makeMessages: (chunk) => [
-        { role: 'system', content: '你是严谨的筛选器，只输出要求的 JSON。' },
-        { role: 'user', content: promptText + JSON.stringify(buildAiPayload(chunk)) },
-      ],
+      makeMessages: (chunk) => ({
+        messages: [
+          { role: 'system', content: '你是严谨的筛选器，只输出要求的 JSON。' },
+          { role: 'user', content: promptText + JSON.stringify(buildAiPayload(chunk)) },
+        ],
+        expect: { type: 'uidArray' },
+      }),
       onResult: (chunk, resp, no) => {
         if (!resp || !resp.ok) {
           failBatches++;
@@ -508,10 +515,13 @@ prompt: `你是一个社交媒体关注列表分析助手。下面是用户关�
       workers,
       shouldStop: () => S.filtering,
       setProgress: (d, t) => { S.filterProgress = { done: d, total: t }; render(); },
-      makeMessages: (chunk) => [
-        { role: 'system', content: '你是严谨的分类器，只输出要求的 JSON。' },
-        { role: 'user', content: DOMAIN_PROMPT + JSON.stringify(buildAiPayload(chunk)) },
-      ],
+      makeMessages: (chunk) => ({
+        messages: [
+          { role: 'system', content: '你是严谨的分类器，只输出要求的 JSON。' },
+          { role: 'user', content: DOMAIN_PROMPT + JSON.stringify(buildAiPayload(chunk)) },
+        ],
+        expect: { type: 'domainLabels' },
+      }),
       onResult: (chunk, resp, no) => {
         if (!resp || !resp.ok) {
           failBatches++;

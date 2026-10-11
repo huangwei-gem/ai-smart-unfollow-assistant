@@ -93,6 +93,35 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   return undefined;
 });
 
+// ---------- 响应 schema 校验：弱模型返回不合规类别时视为该接口失败，自动换下一个 ----------
+function validateContent(content, expect) {
+  if (!expect) return null; // 无校验要求
+  let text = String(content || '').trim();
+  text = text.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, '');
+  const start = text.indexOf('[');
+  const end = text.lastIndexOf(']');
+  if (start === -1 || end === -1 || end <= start) return '返回中找不到 JSON 数组';
+  let arr;
+  try { arr = JSON.parse(text.slice(start, end + 1)); } catch (_) { return 'JSON 解析失败'; }
+  if (!Array.isArray(arr) || !arr.length) return '返回数组为空';
+  if (expect.type === 'categories') {
+    const set = new Set(expect.categories || []);
+    const items = arr.filter((it) => it && it.uid != null);
+    const valid = items.filter((it) => set.has(it.category));
+    if (!items.length || valid.length < Math.max(1, Math.ceil(items.length * 0.5))) {
+      return `返回类别不合规（${valid.length}/${items.length} 在要求类别内，如「${String((arr[0] || {}).category || '').slice(0, 12)}」）`;
+    }
+  } else if (expect.type === 'domainLabels') {
+    const items = arr.filter((it) => it && it.uid != null);
+    const valid = items.filter((it) => it.category && String(it.category).length <= 8);
+    if (!items.length || valid.length < Math.max(1, Math.ceil(items.length * 0.5))) return '返回领域标签不合规';
+  } else if (expect.type === 'uidArray') {
+    const valid = arr.filter((x) => (typeof x === 'string' && x) || (x && x.uid != null)).length;
+    if (valid === 0) return '返回 uid 列表不合规';
+  }
+  return null;
+}
+
 // ---------- 单个接口的请求（含限流重试与超时） ----------
 // 稳定性策略：单请求 25s 超时（实测可用接口均在 15s 内，慢接口直接淘汰）；
 // 重试只给主接口，备用链上的接口失败立即换下一个，避免整条链被拖死。
@@ -141,8 +170,11 @@ async function tryEndpoint(ep, payload, temperature, retries = 0) {
 
     try {
       const j = JSON.parse(text);
-      const content = j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content;
+      const msg = j.choices && j.choices[0] && j.choices[0].message;
+      const content = msg && (msg.content || msg.reasoning_content || msg.reasoning);
       if (!content) return { ok: false, error: '接口返回内容为空：' + text.slice(0, 200) };
+      const verr = validateContent(content, payload.expect);
+      if (verr) return { ok: false, error: verr };
       return { ok: true, content, usage: j.usage || null };
     } catch (e) {
       return { ok: false, error: '接口返回不是合法 JSON：' + text.slice(0, 200) };
