@@ -1,0 +1,15 @@
+{
+  "results": [
+    {
+      "name": "插件已加载（找到 service worker）",
+      "ok": true,
+      "detail": "id=knimpigcpphhkchjidnlfadicmghgomc"
+    },
+    {
+      "name": "测试执行异常中断",
+      "ok": false,
+      "detail": "Error: page eval: TypeError: Cannot set properties of null (setting 'value')\n    at <anonymous>:3:48\n    at <anonymous>:12:7\n    at CDP.evaluate (file:///C:/Users/35796/Downloads/coding%E9%A1%B9%E7%9B%AE/AI%E5%8F%96%E5%85%B3%E6%8F%92%E4%BB%B6/_test/test-cdp.mjs:70:13)\n    at async file:///C:/Users/3"
+    }
+  ],
+  "consoleErrors": {}
+}

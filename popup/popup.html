@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <style>
+    body { width: 340px; margin: 0; font-family: "PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+           font-size: 13px; color: #333; background: #fafafe; }
+    .head { background: linear-gradient(135deg,#6a5cff,#b84dff); color: #fff; padding: 14px 16px; }
+    .head b { font-size: 15px; }
+    .head .sub { font-size: 11px; opacity: .85; margin-top: 2px; }
+    .body { padding: 12px 16px 16px; }
+    label { display: block; font-size: 12px; color: #666; margin: 10px 0 4px; }
+    input, .sel { width: 100%; box-sizing: border-box; border: 1px solid #ddd; border-radius: 8px;
+            padding: 8px 10px; font-size: 13px; outline: none; background: #fff; }
+    input:focus, .sel:focus { border-color: #6a5cff; }
+    .row { display: flex; gap: 8px; }
+    .row > div { flex: 1; }
+    .btn { border: none; border-radius: 8px; padding: 8px 14px; font-size: 13px; cursor: pointer;
+           background: #6a5cff; color: #fff; margin-top: 14px; width: 100%; }
+    .btn.secondary { background: #eef0ff; color: #4a3fd6; margin-top: 8px; }
+    .btn:disabled { opacity: .5; cursor: not-allowed; }
+    .msg { border-radius: 8px; padding: 8px 10px; margin-top: 10px; font-size: 12px; display: none; }
+    .msg.ok { display: block; background: #e8f7ef; color: #178a50; }
+    .msg.err { display: block; background: #fff1f2; color: #c02942; }
+    .tip { font-size: 11px; color: #999; margin-top: 4px; line-height: 1.5; }
+    .usage { background: #f4f6ff; border-radius: 8px; padding: 10px 12px; margin-top: 14px;
+             font-size: 12px; color: #4a3fd6; line-height: 1.7; }
+    .usage b { display: block; margin-bottom: 2px; }
+    .perm { background: #f4f6ff; border-radius: 8px; padding: 10px 12px; margin-top: 14px;
+            font-size: 12px; color: #4a3fd6; line-height: 1.7; }
+    .perm b { display: block; margin-bottom: 2px; }
+    .perm.bad { background: #fff1f2; color: #c02942; }
+  </style>
+</head>
+<body>
+  <div class="head">
+    <b>🧹 AI 智能取关助手</b>
+    <div class="sub">抖音 / B站 · AI 分类 · 批量取关</div>
+  </div>
+  <div class="body">
+    <label>接口预设（已实测可用，选中后地址 / 模型 / Key 一键填入）</label>
+    <select id="preset" class="sel">
+      <option value="">— 自定义 —</option>
+      <option value="agnes-25pb|https://apihub.agnes-ai.com/v1|agnes-2.5-pro-beta|sk-P5tZ5ljBOWyNi85fVzabu633Vp88cmP78d4G7279f6k9KNQj">agnes · 2.5-pro-beta（实测最快之一）</option>
+      <option value="agnes-30f|https://apihub.agnes-ai.com/v1|agnes-3.0-flash|sk-P5tZ5ljBOWyNi85fVzabu633Vp88cmP78d4G7279f6k9KNQj">agnes · 3.0-flash</option>
+      <option value="agnes-25f|https://apihub.agnes-ai.com/v1|agnes-2.5-flash|sk-P5tZ5ljBOWyNi85fVzabu633Vp88cmP78d4G7279f6k9KNQj">agnes · 2.5-flash</option>
+      <option value="sensenova|https://token.sensenova.cn/v1|deepseek-v4-flash|sk-F3WGt9cnsCrduZMyhyTYMEEKYJWE1Mzn">商汤 · deepseek-v4-flash（最快，默认）</option>
+      <option value="sensenova2|https://token.sensenova.cn/v1|deepseek-v4-flash|sk-Pw4XHALKoM3MYleuICN6F2vfp2GP1QUl">商汤 · 备用 Key</option>
+      <option value="ss-glm52|https://token.sensenova.cn/v1|glm-5.2|sk-F3WGt9cnsCrduZMyhyTYMEEKYJWE1Mzn">商汤 · glm-5.2</option>
+      <option value="ss-68lite|https://token.sensenova.cn/v1|sensenova-6.8-flash-lite|sk-F3WGt9cnsCrduZMyhyTYMEEKYJWE1Mzn">商汤 · sensenova-6.8-flash-lite</option>
+      <option value="amd-dsv4|https://developer.amd.com.cn/radeon/api/v1|DeepSeek-V4-Flash|rc-ee98411a4be1ae0e3522888415af21cad30c3940981af7fa">AMD · DeepSeek-V4-Flash</option>
+      <option value="amd-glm|https://developer.amd.com.cn/radeon/api/v1|GLM-5.3-Flash|rc-ee98411a4be1ae0e3522888415af21cad30c3940981af7fa">AMD · GLM-5.3-Flash</option>
+      <option value="amd-qwen|https://developer.amd.com.cn/radeon/api/v1|Qwen3.8-Flash-Next|rc-ee98411a4be1ae0e3522888415af21cad30c3940981af7fa">AMD · Qwen3.8-Flash-Next</option>
+      <option value="amd-qwen27b|https://developer.amd.com.cn/radeon/api/v1|Qwen3.8-27B|rc-ee98411a4be1ae0e3522888415af21cad30c3940981af7fa">AMD · Qwen3.8-27B</option>
+      <option value="amd-mimo|https://developer.amd.com.cn/radeon/api/v1|MiMo-V2.6-Flash|rc-ee98411a4be1ae0e3522888415af21cad30c3940981af7fa">AMD · MiMo-V2.6-Flash</option>
+      <option value="nvidia-glm|https://integrate.api.nvidia.com/v1|z-ai/glm-5.3-flash|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">NVIDIA · GLM-5.3-Flash</option>
+      <option value="diandian|https://note3-prev-api.askdiandian.com/v1|dots3-note-prev|ak_iGxurHneP9HveEQ5cJRuAvZQDJeDI">点点笔记 · dots3-note-prev</option>
+    </select>
+    <label>接口地址（OpenAI 兼容，填到 /v1 即可）</label>
+    <input id="baseUrl" placeholder="https://api.openai.com/v1 或 https://api.deepseek.com/v1">
+    <label>API Key</label>
+    <input id="apiKey" type="password" placeholder="sk-...">
+    <label>模型</label>
+    <input id="model" placeholder="gpt-4o-mini / deepseek-chat / glm-4-flash …">
+    <div class="row">
+      <div>
+        <label>每次分类人数</label>
+        <input id="batchSize" type="number" min="5" max="100" value="40">
+      </div>
+    </div>
+    <div class="tip">Key 已内置可用预设中，开箱即用；也可换成你自己的接口与 Key（仅保存在浏览器本地）。<br>预设列表中「商汤」为默认接入，速度最快。</div>
+    <button class="btn" id="save">保存设置</button>
+    <button class="btn secondary" id="test">测试接口连通性</button>
+    <button class="btn secondary" id="openPanel">打开悬浮面板</button>
+    <button class="btn secondary" id="fixPerm" style="display:none">⚠ 一键修复接口权限</button>
+    <div class="msg" id="msg"></div>
+    <div class="perm" id="permBox"><b>接口权限</b><span id="permState">检查中…</span></div>
+    <div class="usage">
+      <b>使用方法</b>
+      ① B站：打开 bilibili.com 任意页面；抖音：建议先在创作者平台
+      <a href="https://creator.douyin.com/creator-micro/data/following/following" target="_blank">关注管理页</a> 扫码登录<br>
+      ② 点页面右侧悬浮球 🧹 → 抓取关注列表<br>
+      ③ AI 分类后逐组勾选 → 确认取关
+    </div>
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html>

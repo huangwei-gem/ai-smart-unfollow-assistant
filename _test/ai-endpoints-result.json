@@ -1,0 +1,315 @@
+[
+  {
+    "endpoint": "Agnes AI",
+    "base": "https://apihub.agnes-ai.com/v1",
+    "model": "agnes-2.5-flash",
+    "ok": false,
+    "err": "fetch failed",
+    "ms": 10694,
+    "cors": {
+      "preflight": false,
+      "err": "fetch failed"
+    }
+  },
+  {
+    "endpoint": "SenseNova A",
+    "base": "https://token.sensenova.cn/v1",
+    "model": "deepseek-v4-flash",
+    "ok": true,
+    "http": 200,
+    "ms": 3215,
+    "acao": "*",
+    "usage": {
+      "prompt_tokens": 197,
+      "completion_tokens": 95,
+      "total_tokens": 292,
+      "completion_tokens_details": {
+        "reasoning_tokens": 55
+      },
+      "prompt_tokens_details": {
+        "cached_tokens": 0
+      }
+    },
+    "count": 3,
+    "categories": [
+      "常看博主",
+      "营销号",
+      "可能认识"
+    ],
+    "cors": {
+      "preflight": true,
+      "status": 404,
+      "acao": "chrome-extension://fpegjpeohcikjpjapcnbnecpmbdelbig",
+      "acam": null,
+      "acah": null,
+      "browserOk": true
+    }
+  },
+  {
+    "endpoint": "SenseNova B",
+    "base": "https://token.sensenova.cn/v1",
+    "model": "deepseek-v4-flash",
+    "ok": true,
+    "http": 200,
+    "ms": 1804,
+    "acao": "*",
+    "usage": {
+      "prompt_tokens": 197,
+      "completion_tokens": 91,
+      "total_tokens": 288,
+      "completion_tokens_details": {
+        "reasoning_tokens": 51
+      },
+      "prompt_tokens_details": {
+        "cached_tokens": 0
+      }
+    },
+    "count": 3,
+    "categories": [
+      "常看博主",
+      "营销号",
+      "可能认识"
+    ],
+    "cors": {
+      "preflight": true,
+      "status": 404,
+      "acao": "chrome-extension://fpegjpeohcikjpjapcnbnecpmbdelbig",
+      "acam": null,
+      "acah": null,
+      "browserOk": true
+    }
+  },
+  {
+    "endpoint": "点点笔记",
+    "base": "https://note3-prev-api.askdiandian.com/v1",
+    "model": "dots3-note-prev",
+    "ok": true,
+    "http": 200,
+    "ms": 40573,
+    "acao": "",
+    "usage": {
+      "prompt_tokens": 126,
+      "completion_tokens": 883,
+      "total_tokens": 1009
+    },
+    "count": 3,
+    "categories": [
+      "常看博主",
+      "营销号",
+      "可能认识"
+    ],
+    "cors": {
+      "preflight": true,
+      "status": 200,
+      "acao": "chrome-extension://fpegjpeohcikjpjapcnbnecpmbdelbig",
+      "acam": "POST, GET, OPTIONS, PUT, DELETE, PATCH, CONNECT, TRACE, HEAD",
+      "acah": "authorization, content-type",
+      "browserOk": true
+    }
+  },
+  {
+    "endpoint": "AMD Radeon",
+    "base": "https://developer.amd.com.cn/radeon/api/v1",
+    "model": "DeepSeek-V4.1-Flash",
+    "ok": false,
+    "err": "The operation was aborted due to timeout",
+    "ms": 60009,
+    "cors": {
+      "preflight": true,
+      "status": 405,
+      "acao": null,
+      "acam": null,
+      "acah": null,
+      "browserOk": null
+    }
+  },
+  {
+    "endpoint": "AMD Radeon",
+    "base": "https://developer.amd.com.cn/radeon/api/v1",
+    "model": "GLM-5.3-Flash",
+    "ok": true,
+    "http": 200,
+    "ms": 4972,
+    "acao": null,
+    "usage": {
+      "prompt_tokens": 125,
+      "total_tokens": 296,
+      "completion_tokens": 171,
+      "prompt_tokens_details": {
+        "cached_tokens": 0,
+        "created_cache_tokens": 0,
+        "multimodal_tokens": null,
+        "cache_write_tokens": 0,
+        "audio_tokens": 0,
+        "video_tokens": 0,
+        "image_tokens": 0
+      },
+      "cost": 0.00010425,
+      "cost_details": {
+        "upstream_inference_cost": 0.00010425,
+        "upstream_inference_prompt_cost": 0.00001875,
+        "upstream_inference_completions_cost": 0.0000855,
+        "total_cost": 0.00010425,
+        "input_cost": 0.00001875,
+        "output_cost": 0.0000855,
+        "cached_input_cost": 0,
+        "cache_write_input_cost": 0,
+        "request_cost": 0,
+        "web_search_cost": 0,
+        "image_input_cost": null,
+        "image_output_cost": null,
+        "audio_input_cost": null,
+        "data_storage_cost": 0.00000404
+      },
+      "completion_tokens_details": {
+        "reasoning_tokens": 108,
+        "image_tokens": 0,
+        "audio_tokens": 0
+      }
+    },
+    "count": 3,
+    "categories": [
+      "常看博主",
+      "营销号",
+      "可能认识"
+    ],
+    "cors": {
+      "preflight": true,
+      "status": 405,
+      "acao": null,
+      "acam": null,
+      "acah": null,
+      "browserOk": null
+    }
+  },
+  {
+    "endpoint": "AMD Radeon",
+    "base": "https://developer.amd.com.cn/radeon/api/v1",
+    "model": "Qwen3.8-Flash-Next",
+    "ok": true,
+    "http": 200,
+    "ms": 8034,
+    "acao": null,
+    "usage": {
+      "prompt_tokens": 171,
+      "total_tokens": 393,
+      "completion_tokens": 222,
+      "prompt_tokens_details": {
+        "cached_tokens": 0,
+        "cache_write_tokens": 0,
+        "audio_tokens": 0,
+        "video_tokens": 0,
+        "image_tokens": 0
+      },
+      "reasoning_tokens": 180,
+      "cost": 0.00021459,
+      "cost_details": {
+        "upstream_inference_cost": 0.00021459,
+        "upstream_inference_prompt_cost": 0.00002565,
+        "upstream_inference_completions_cost": 0.00018894,
+        "total_cost": 0.00021459,
+        "input_cost": 0.00002565,
+        "output_cost": 0.00018894,
+        "cached_input_cost": 0,
+        "cache_write_input_cost": 0,
+        "request_cost": 0,
+        "web_search_cost": 0,
+        "image_input_cost": null,
+        "image_output_cost": null,
+        "audio_input_cost": null,
+        "data_storage_cost": 0.000005730000000000001
+      },
+      "completion_tokens_details": {
+        "reasoning_tokens": 180,
+        "image_tokens": 0,
+        "audio_tokens": 0
+      }
+    },
+    "count": 3,
+    "categories": [
+      "常看博主",
+      "营销号",
+      "可能认识"
+    ],
+    "cors": {
+      "preflight": true,
+      "status": 405,
+      "acao": null,
+      "acam": null,
+      "acah": null,
+      "browserOk": null
+    }
+  },
+  {
+    "endpoint": "NVIDIA NIM",
+    "base": "https://integrate.api.nvidia.com/v1",
+    "model": "glm-5-3",
+    "ok": false,
+    "http": 404,
+    "err": "404 page not found\n",
+    "ms": 2015,
+    "acao": null,
+    "cors": {
+      "preflight": true,
+      "status": 200,
+      "acao": null,
+      "acam": null,
+      "acah": null,
+      "browserOk": null
+    }
+  },
+  {
+    "endpoint": "NVIDIA NIM",
+    "base": "https://integrate.api.nvidia.com/v1",
+    "model": "glm-5-3-flash",
+    "ok": false,
+    "http": 404,
+    "err": "404 page not found\n",
+    "ms": 186,
+    "acao": null,
+    "cors": {
+      "preflight": true,
+      "status": 200,
+      "acao": null,
+      "acam": null,
+      "acah": null,
+      "browserOk": null
+    }
+  },
+  {
+    "endpoint": "NVIDIA NIM",
+    "base": "https://integrate.api.nvidia.com/v1",
+    "model": "kimi-k3",
+    "ok": false,
+    "http": 404,
+    "err": "404 page not found\n",
+    "ms": 153,
+    "acao": null,
+    "cors": {
+      "preflight": true,
+      "status": 200,
+      "acao": null,
+      "acam": null,
+      "acah": null,
+      "browserOk": null
+    }
+  },
+  {
+    "endpoint": "NVIDIA NIM",
+    "base": "https://integrate.api.nvidia.com/v1",
+    "model": "deepseek-v4-flash-0731",
+    "ok": false,
+    "http": 404,
+    "err": "404 page not found\n",
+    "ms": 192,
+    "acao": null,
+    "cors": {
+      "preflight": true,
+      "status": 200,
+      "acao": null,
+      "acam": null,
+      "acah": null,
+      "browserOk": null
+    }
+  }
+]

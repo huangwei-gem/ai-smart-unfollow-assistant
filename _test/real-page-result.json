@@ -1,0 +1,9 @@
+{
+  "results": [
+    {
+      "name": "测试执行异常",
+      "ok": false,
+      "detail": "TypeError: Cannot read properties of undefined (reading 'onMessage')\n    at <anonymous>:514:18\n    at <anonymous>:527:3"
+    }
+  ]
+}

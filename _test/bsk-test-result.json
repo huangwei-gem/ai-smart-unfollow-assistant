@@ -1,0 +1,64 @@
+{
+  "results": [
+    {
+      "name": "抖音主站：注入 + 平台识别",
+      "ok": true,
+      "detail": "{\"ball\":true,\"hint\":\"当前在抖音主站。取关功能在创作者平台的「关注管理」页完成，点击下方按钮会自动跳转（需先用抖音 APP 扫码登录创作者平台）。\",\"injected\":true,\"needsRedirect\":true,\"platform\":\"douyin\"}"
+    },
+    {
+      "name": "抖音主站：悬浮球挂载",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "抖音主站：提示跳转创作者平台",
+      "ok": true,
+      "detail": "当前在抖音主站。取关功能在创作者平台的「关注管理」页完成，点击下方按钮会自动跳转（需先用抖音 APP 扫码登录创作者平台）。"
+    },
+    {
+      "name": "抖音主站：面板可打开",
+      "ok": true,
+      "detail": "当前在抖音主站。取关功能在创作者平台的「关注管理」页完成，点击下方按钮会自动跳转（需先用抖音 APP 扫码登录创作者平台）。\n① 抓取关注列表\n抓取后自动进入分类确认，全程在你的浏览器本地完成。"
+    },
+    {
+      "name": "抖音主站：抓取触发跳转确认框（未被跳转）",
+      "ok": true,
+      "detail": "抖音取关在创作者平台的「关注管理」页完成（需已用抖音 APP 扫码登录创作者平台）。\n点「确定」自动跳转，到达后重新点「抓取关注列表」。"
+    },
+    {
+      "name": "抖音主站：截图留证",
+      "ok": false,
+      "detail": "screenshot failed"
+    },
+    {
+      "name": "AI 管线：垫片→mock→JSON 分类解析",
+      "ok": true,
+      "detail": "{\"categories\":[\"常看博主\",\"营销号\",\"僵尸号\"],\"count\":3,\"ok\":true}"
+    },
+    {
+      "name": "B站：注入 + 平台识别",
+      "ok": true,
+      "detail": "{\"ball\":true,\"hint\":\"未检测到 B站 登录态，请先在 bilibili.com 登录。\",\"injected\":true,\"platform\":\"bilibili\",\"supported\":false}"
+    },
+    {
+      "name": "B站：未登录 → isSupportedPage=false",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "B站：未登录 → 引导登录提示",
+      "ok": true,
+      "detail": "未检测到 B站 登录态，请先在 bilibili.com 登录。"
+    },
+    {
+      "name": "B站：未登录点抓取 → 面板内报错不崩溃",
+      "ok": true,
+      "detail": "未检测到 B站 登录态，请先在 bilibili.com 登录。 | 抓取失败：未登录 B站，无法获取关注列表 | ① 抓取关注列表 | 抓取后自动进入分类确认，全程在你的浏览器本地完成。"
+    },
+    {
+      "name": "B站：截图留证",
+      "ok": false,
+      "detail": "screenshot failed"
+    }
+  ]
+}

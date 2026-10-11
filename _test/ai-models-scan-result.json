@@ -1,0 +1,258 @@
+{
+  "agnes": {
+    "modelsList": {
+      "ok": false,
+      "error": "fetch failed"
+    },
+    "chats": {}
+  },
+  "sensenova": {
+    "modelsList": {
+      "ok": true,
+      "status": 200,
+      "count": 7,
+      "ids": [
+        "deepseek-v4-flash",
+        "glm-5.2",
+        "sensenova-6.8-flash-lite",
+        "sensenova-u1.5-lite",
+        "kimi-k3",
+        "deepseek-flash",
+        "deepseek-v4.1-flash"
+      ]
+    },
+    "chats": {
+      "deepseek-v4-flash": {
+        "ok": true,
+        "ms": 1914,
+        "sample": "[\n  {\"uid\":\"u1\",\"category\":\"常看\"},\n  {\"uid\":\"u2\",\"category\":\"取关\"},\n  {\"uid\":\"u3\",\"category\":\"常看\"}\n]"
+      },
+      "glm-5.2": {
+        "ok": true,
+        "ms": 7140,
+        "sample": "[\n  {\"uid\": \"u1\", \"category\": \"常看\"},\n  {\"uid\": \"u2\", \"category\": \"取关\"},\n  {\"uid\": \"u3\", \"category\": \"常看\"}\n]"
+      },
+      "sensenova-6.8-flash-lite": {
+        "ok": false,
+        "ms": 90022,
+        "error": "The operation was aborted due to timeout"
+      },
+      "sensenova-u1.5-lite": {
+        "ok": false,
+        "status": 404,
+        "ms": 1691,
+        "body": "{\"error\":{\"message\":\"model is not found\",\"type\":\"not_found_error\",\"code\":\"5\"}}"
+      },
+      "kimi-k3": {
+        "ok": false,
+        "status": 400,
+        "ms": 448,
+        "body": "{\"error\":{\"message\":\"field Temperature invalid, only 1 is allowed for this model\",\"type\":\"invalid_request_error\",\"param\":\"temperature\",\"code\":\"3\"}}"
+      },
+      "deepseek-flash": {
+        "ok": false,
+        "status": 429,
+        "ms": 283,
+        "body": "{\"error\":{\"message\":\"inference exceeds tpm/rpm limit\",\"type\":\"rate_limit_error\",\"code\":\"RateLimitExceeded.EndpointTPMExceeded\"}}"
+      },
+      "deepseek-v4.1-flash": {
+        "ok": false,
+        "status": 403,
+        "ms": 245,
+        "body": "{\"error\":{\"message\":\"model is not available in the current token plan\",\"type\":\"permission_denied_error\",\"code\":\"7\"}}"
+      }
+    }
+  },
+  "diandian": {
+    "modelsList": {
+      "ok": true,
+      "status": 200,
+      "count": 1,
+      "ids": [
+        "dots3-note-prev"
+      ]
+    },
+    "chats": {
+      "dots3-note-prev": {
+        "ok": true,
+        "ms": 1907,
+        "sample": "[{\"uid\":\"u1\",\"category\":\"常看\"},{\"uid\":\"u2\",\"category\":\"取关\"},{\"uid\":\"u3\",\"category\":\"常看\"}]"
+      }
+    }
+  },
+  "amd": {
+    "modelsList": {
+      "ok": false,
+      "error": "fetch failed"
+    },
+    "chats": {}
+  },
+  "nvidia": {
+    "modelsList": {
+      "ok": true,
+      "status": 200,
+      "count": 80,
+      "ids": [
+        "01-ai/yi-large",
+        "adept/fuyu-8b",
+        "ai21labs/jamba-1.5-large-instruct",
+        "aisingapore/sea-lion-7b-instruct",
+        "bigcode/starcoder2-15b",
+        "databricks/dbrx-instruct",
+        "deepseek-ai/deepseek-coder-6.7b-instruct",
+        "deepseek-ai/deepseek-v4.1-flash",
+        "google/codegemma-1.1-7b",
+        "google/codegemma-7b",
+        "google/deplot",
+        "google/diffusiongemma-26b-a4b-it",
+        "google/gemma-2b",
+        "google/gemma-3-12b-it",
+        "google/gemma-3-4b-it",
+        "google/gemma-4-31b-it",
+        "google/recurrentgemma-2b",
+        "ibm/granite-3.0-3b-a800m-instruct",
+        "ibm/granite-3.0-8b-instruct",
+        "ibm/granite-34b-code-instruct",
+        "ibm/granite-8b-code-instruct",
+        "meta/codellama-70b",
+        "meta/llama-3.2-11b-vision-instruct",
+        "meta/llama-3.2-90b-vision-instruct",
+        "meta/llama-guard-4-12b",
+        "meta/llama2-70b",
+        "meta/muse-glimmer-30b",
+        "microsoft/kosmos-2",
+        "microsoft/phi-3-vision-128k-instruct",
+        "microsoft/phi-3.5-moe-instruct",
+        "mistralai/codestral-22b-instruct-v0.1",
+        "mistralai/mistral-7b-instruct-v0.3",
+        "mistralai/mistral-large",
+        "mistralai/mistral-large-2-instruct",
+        "mistralai/mixtral-8x22b-v0.1",
+        "moonshotai/kimi-k2.6",
+        "moonshotai/kimi-k3",
+        "nv-mistralai/mistral-nemo-12b-instruct",
+        "nvidia/ai-synthetic-video-detector",
+        "nvidia/cosmos-reason2-8b",
+        "nvidia/embed-qa-4",
+        "nvidia/ising-calibration-1.5-31b",
+        "nvidia/llama-3.1-nemoguard-8b-content-safety",
+        "nvidia/llama-3.1-nemoguard-8b-topic-control",
+        "nvidia/llama-3.1-nemotron-51b-instruct",
+        "nvidia/llama-3.1-nemotron-70b-instruct",
+        "nvidia/llama-3.1-nemotron-safety-guard-8b-v3",
+        "nvidia/llama-3.1-nemotron-ultra-253b-v1",
+        "nvidia/llama-3.2-nemoretriever-1b-vlm-embed-v1",
+        "nvidia/llama-3.2-nv-embedqa-1b-v1",
+        "nvidia/llama-nemotron-embed-vl-1b-v2",
+        "nvidia/llama3-chatqa-1.5-70b",
+        "nvidia/mistral-nemo-minitron-8b-8k-instruct",
+        "nvidia/nemotron-3-embed-1b",
+        "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning",
+        "nvidia/nemotron-3-super-120b-a12b",
+        "nvidia/nemotron-3-ultra-550b-a55b",
+        "nvidia/nemotron-3.5-content-safety",
+        "nvidia/nemotron-3.5-lightning-30b-a3b",
+        "nvidia/nemotron-4-340b-instruct",
+        "nvidia/nemotron-4-340b-reward",
+        "nvidia/nemotron-nano-3-30b-a3b",
+        "nvidia/nemotron-parse",
+        "nvidia/nemotron-parse-2.0",
+        "nvidia/neva-22b",
+        "nvidia/nv-embedqa-mistral-7b-v2",
+        "nvidia/nvclip",
+        "nvidia/riva-translate-4b-instruct",
+        "nvidia/riva-translate-4b-instruct-v2",
+        "nvidia/vila",
+        "openai/gpt-oss-20b",
+        "poolside/laguna-xs-2.1",
+        "snowflake/arctic-embed-l",
+        "writer/palmyra-creative-122b",
+        "writer/palmyra-fin-70b-32k",
+        "writer/palmyra-med-70b",
+        "writer/palmyra-med-70b-32k",
+        "z-ai/glm-5.3",
+        "z-ai/glm-5.3-flash",
+        "zyphra/zamba2-7b-instruct"
+      ]
+    },
+    "chats": {
+      "01-ai/yi-large": {
+        "ok": false,
+        "status": 404,
+        "ms": 635,
+        "body": "{\"status\":404,\"title\":\"Not Found\",\"detail\":\"Function '23bd454d-b225-49a3-8118-582a62fc51b8': Not found for account 'ag6SqrRXx1XEWT4_HhNwFlKJDVjb7xIokv0Cnc7q5dM'"
+      },
+      "adept/fuyu-8b": {
+        "ok": false,
+        "status": 404,
+        "ms": 174,
+        "body": "{\"status\":404,\"title\":\"Not Found\",\"detail\":\"Function 'e598bfc1-b058-41af-869d-556d3c7e1b48': Not found for account 'ag6SqrRXx1XEWT4_HhNwFlKJDVjb7xIokv0Cnc7q5dM'"
+      },
+      "ai21labs/jamba-1.5-large-instruct": {
+        "ok": false,
+        "status": 404,
+        "ms": 170,
+        "body": "{\"status\":404,\"title\":\"Not Found\",\"detail\":\"Function '6497fc2b-7ff8-4019-8946-123dccbfc863': Not found for account 'ag6SqrRXx1XEWT4_HhNwFlKJDVjb7xIokv0Cnc7q5dM'"
+      },
+      "aisingapore/sea-lion-7b-instruct": {
+        "ok": false,
+        "status": 404,
+        "ms": 165,
+        "body": "{\"status\":404,\"title\":\"Not Found\",\"detail\":\"Function '02f84bf4-c1a1-489b-a9de-ac3e8dcdec14': Not found for account 'ag6SqrRXx1XEWT4_HhNwFlKJDVjb7xIokv0Cnc7q5dM'"
+      },
+      "bigcode/starcoder2-15b": {
+        "ok": false,
+        "status": 404,
+        "ms": 241,
+        "body": "404 page not found\n"
+      },
+      "databricks/dbrx-instruct": {
+        "ok": false,
+        "status": 404,
+        "ms": 184,
+        "body": "{\"status\":404,\"title\":\"Not Found\",\"detail\":\"Function '3d6c2ff8-8bfc-4d10-8fd0-b7337288e869': Not found for account 'ag6SqrRXx1XEWT4_HhNwFlKJDVjb7xIokv0Cnc7q5dM'"
+      },
+      "deepseek-ai/deepseek-coder-6.7b-instruct": {
+        "ok": false,
+        "status": 404,
+        "ms": 177,
+        "body": "{\"status\":404,\"title\":\"Not Found\",\"detail\":\"Function 'e503b15c-62b0-4d69-b532-a88f0bfa2656': Not found for account 'ag6SqrRXx1XEWT4_HhNwFlKJDVjb7xIokv0Cnc7q5dM'"
+      },
+      "deepseek-ai/deepseek-v4.1-flash": {
+        "ok": false,
+        "ms": 90002,
+        "error": "The operation was aborted due to timeout"
+      },
+      "google/codegemma-1.1-7b": {
+        "ok": false,
+        "status": 404,
+        "ms": 1454,
+        "body": "{\"status\":404,\"title\":\"Not Found\",\"detail\":\"Function 'e2d298c5-204e-4213-b921-9f492cc9011b': Not found for account 'ag6SqrRXx1XEWT4_HhNwFlKJDVjb7xIokv0Cnc7q5dM'"
+      },
+      "google/codegemma-7b": {
+        "ok": false,
+        "status": 404,
+        "ms": 1541,
+        "body": "{\"status\":404,\"title\":\"Not Found\",\"detail\":\"Function '7dfc10a8-3cc4-448e-97c1-2213308dc222': Not found for account 'ag6SqrRXx1XEWT4_HhNwFlKJDVjb7xIokv0Cnc7q5dM'"
+      },
+      "google/deplot": {
+        "ok": false,
+        "status": 404,
+        "ms": 884,
+        "body": "{\"status\":404,\"title\":\"Not Found\",\"detail\":\"Function '784a8ca4-ea7d-4c93-bb46-ec027c3fae47': Not found for account 'ag6SqrRXx1XEWT4_HhNwFlKJDVjb7xIokv0Cnc7q5dM'"
+      },
+      "google/diffusiongemma-26b-a4b-it": {
+        "ok": true,
+        "ms": 13864,
+        "sample": "```json\n[\n  {\"uid\": \"u1\", \"category\": \"常看\"},\n  {\"uid\": \"u2\", \"category\": \"取关\"},\n  {\"uid\": \"u3\", \"category\": \"常看\"}\n]\n```"
+      }
+    }
+  },
+  "opencode": {
+    "modelsList": {
+      "ok": false,
+      "error": "fetch failed"
+    },
+    "chats": {}
+  }
+}

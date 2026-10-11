@@ -1,0 +1,186 @@
+/* ============================================================
+   AI 智能取关助手 — 悬浮面板样式（现代浅色 UI）
+   设计语言：Indigo→Purple 渐变主色、大圆角、柔和投影、克制留白
+   ============================================================ */
+
+#aiuf-root {
+  position: fixed; right: 18px; top: 84px; z-index: 2147483600;
+  font-family: "PingFang SC", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+  color: #1f2937;
+}
+
+/* ---------- 悬浮球 ---------- */
+.aiuf-ball {
+  width: 52px; height: 52px; border-radius: 50%;
+  background: linear-gradient(135deg, #6366f1, #a855f7);
+  color: #fff; display: flex; align-items: center; justify-content: center;
+  cursor: pointer; font-size: 22px; user-select: none;
+  box-shadow: 0 6px 20px rgba(99, 102, 241, .38), 0 0 0 4px rgba(255, 255, 255, .65);
+  transition: transform .18s ease, box-shadow .18s ease;
+}
+.aiuf-ball:hover { transform: scale(1.08); box-shadow: 0 8px 26px rgba(99, 102, 241, .5), 0 0 0 4px rgba(255, 255, 255, .75); }
+
+/* ---------- 面板容器 ---------- */
+.aiuf-panel {
+  width: 420px; max-height: 78vh;
+  background: rgba(255, 255, 255, .97);
+  border: 1px solid #eceef3; border-radius: 16px;
+  box-shadow: 0 12px 48px rgba(17, 24, 39, .16), 0 2px 8px rgba(17, 24, 39, .06);
+  display: flex; flex-direction: column; overflow: hidden;
+}
+
+.aiuf-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 13px 18px;
+  background: linear-gradient(120deg, #6366f1, #a855f7);
+  color: #fff;
+}
+.aiuf-head b { font-size: 15px; font-weight: 600; letter-spacing: .2px; }
+.aiuf-ver {
+  font-size: 10px; font-weight: 500; opacity: .75;
+  background: rgba(255, 255, 255, .22); border-radius: 999px;
+  padding: 1px 7px; margin-left: 4px; vertical-align: 1px;
+}
+.aiuf-close { cursor: pointer; font-size: 16px; opacity: .8; padding: 2px 6px; border-radius: 8px; transition: all .15s; }
+.aiuf-close:hover { opacity: 1; background: rgba(255, 255, 255, .18); }
+
+.aiuf-body {
+  padding: 14px 18px 18px; overflow-y: auto;
+  font-size: 13px; color: #374151; line-height: 1.6;
+  scrollbar-width: thin; scrollbar-color: #d6d9e0 transparent;
+}
+.aiuf-body::-webkit-scrollbar { width: 6px; }
+.aiuf-body::-webkit-scrollbar-thumb { background: #d6d9e0; border-radius: 3px; }
+
+/* ---------- 按钮 ---------- */
+.aiuf-btn {
+  display: inline-block; border: none; border-radius: 10px;
+  padding: 8px 15px; font-size: 13px; font-weight: 500; line-height: 1.4;
+  cursor: pointer; margin: 2px 4px 2px 0;
+  transition: transform .12s ease, box-shadow .12s ease, filter .12s ease, background .12s ease;
+}
+.aiuf-btn:hover:not(:disabled) { transform: translateY(-1px); }
+.aiuf-btn:active:not(:disabled) { transform: translateY(0); }
+.aiuf-btn.primary {
+  background: linear-gradient(120deg, #6366f1, #8b5cf6); color: #fff;
+  box-shadow: 0 3px 12px rgba(99, 102, 241, .32);
+}
+.aiuf-btn.primary:hover:not(:disabled) { box-shadow: 0 5px 16px rgba(99, 102, 241, .42); }
+.aiuf-btn.danger {
+  background: linear-gradient(120deg, #f43f5e, #fb7185); color: #fff;
+  box-shadow: 0 3px 12px rgba(244, 63, 94, .3);
+}
+.aiuf-btn.danger:hover:not(:disabled) { box-shadow: 0 5px 16px rgba(244, 63, 94, .4); }
+.aiuf-btn.ghost { background: #f3f4f6; color: #4b5563; }
+.aiuf-btn.ghost:hover:not(:disabled) { background: #e9ebf1; }
+.aiuf-btn:disabled { opacity: .45; cursor: not-allowed; transform: none !important; box-shadow: none; }
+
+/* ---------- 进度条 ---------- */
+.aiuf-progress { height: 6px; background: #eef0f5; border-radius: 4px; overflow: hidden; margin: 10px 0; }
+.aiuf-progress > div {
+  height: 100%; border-radius: 4px;
+  background: linear-gradient(90deg, #6366f1, #a855f7);
+  transition: width .3s ease;
+}
+
+/* ---------- 提示与错误 ---------- */
+.aiuf-err {
+  background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca;
+  border-radius: 10px; padding: 9px 12px; margin: 8px 0; font-size: 12px;
+}
+.aiuf-hint {
+  background: #eef2ff; color: #4338ca; border: 1px solid #e0e7ff;
+  border-radius: 10px; padding: 9px 12px; margin: 4px 0 10px; font-size: 12px;
+}
+
+/* ---------- 折叠式执行详情（默认收起，不暴露日志给用户） ---------- */
+.aiuf-logwrap { margin: 8px 0; border-radius: 10px; }
+.aiuf-logwrap summary {
+  display: inline-flex; align-items: center; gap: 5px;
+  cursor: pointer; user-select: none; list-style: none;
+  font-size: 12px; color: #9ca3af; padding: 3px 8px; border-radius: 8px;
+  transition: all .15s;
+}
+.aiuf-logwrap summary::-webkit-details-marker { display: none; }
+.aiuf-logwrap summary::before { content: "▸"; font-size: 10px; transition: transform .15s; }
+.aiuf-logwrap[open] summary::before { transform: rotate(90deg); }
+.aiuf-logwrap summary:hover { color: #6b7280; background: #f3f4f6; }
+.aiuf-log {
+  margin-top: 6px; background: #0f172a; color: #86efac;
+  font-family: Consolas, "JetBrains Mono", monospace; font-size: 11px; line-height: 1.6;
+  border-radius: 10px; padding: 10px 12px;
+  max-height: 140px; overflow-y: auto; white-space: pre-wrap; word-break: break-all;
+  scrollbar-width: thin; scrollbar-color: #334155 transparent;
+}
+
+/* ---------- 账号列表 ---------- */
+.aiuf-acct {
+  display: flex; align-items: center; gap: 10px;
+  padding: 7px 10px; border-radius: 12px; transition: background .12s;
+}
+.aiuf-acct:hover { background: #f8fafc; }
+.aiuf-acct input[type="checkbox"] { accent-color: #6a5cff; width: 15px; height: 15px; cursor: pointer; flex: none; }
+.aiuf-acct img {
+  width: 34px; height: 34px; border-radius: 50%; object-fit: cover; flex: none;
+  background: #eef0f5; border: 1px solid #eceef3;
+}
+.aiuf-acct .n { flex: 1; min-width: 0; }
+.aiuf-acct .n .nm { font-weight: 600; color: #111827; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.aiuf-acct .n .sg { color: #9ca3af; font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.aiuf-acct select {
+  font-size: 12px; border: 1px solid #e5e7eb; border-radius: 8px; padding: 3px 5px;
+  color: #374151; flex: none; max-width: 92px; background: #fff; cursor: pointer;
+  transition: border-color .15s;
+}
+.aiuf-acct select:hover, .aiuf-acct select:focus { border-color: #a5b4fc; outline: none; }
+
+/* ---------- 分组标题 ---------- */
+.aiuf-cat-head { display: flex; align-items: center; gap: 8px; margin: 14px 0 4px; font-weight: 700; font-size: 13px; color: #111827; }
+.aiuf-cat-head .cnt { color: #9ca3af; font-weight: 400; font-size: 12px; }
+.aiuf-cat-head .ops { margin-left: auto; font-weight: 400; }
+.aiuf-cat-head .ops a { color: #6366f1; cursor: pointer; font-size: 12px; margin-left: 8px; text-decoration: none; }
+.aiuf-cat-head .ops a:hover { text-decoration: underline; }
+
+/* ---------- 工具栏 ---------- */
+.aiuf-mini { font-size: 12px; color: #6b7280; margin: 6px 0; }
+.aiuf-toolbar { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 10px 0; }
+.aiuf-toolbar input[type=text] {
+  flex: 1; min-width: 130px; border: 1px solid #e5e7eb; border-radius: 10px;
+  padding: 7px 12px; font-size: 12px; outline: none; background: #f9fafb;
+  transition: border-color .15s, background .15s;
+}
+.aiuf-toolbar input[type=text]:focus { border-color: #a5b4fc; background: #fff; }
+
+/* ---------- 结果统计 ---------- */
+.aiuf-stat { display: flex; gap: 12px; margin: 12px 0; font-size: 13px; color: #6b7280; }
+.aiuf-stat > div {
+  flex: 1; text-align: center; padding: 12px 8px;
+  background: #f9fafb; border: 1px solid #eceef3; border-radius: 14px;
+}
+.aiuf-stat b { display: block; font-size: 22px; margin-top: 2px; }
+.aiuf-stat .ok { color: #10b981; }
+.aiuf-stat .fail { color: #f43f5e; }
+
+@keyframes aiuf-pulse { 0% { width: 8%; } 50% { width: 45%; } 100% { width: 8%; } }
+.aiuf-progress.indeterminate > div { animation: aiuf-pulse 1.2s infinite; }
+
+/* ---------- 自定义筛选输入行 ---------- */
+.aiuf-qrow { display: flex; gap: 8px; align-items: center; margin: 10px 0 4px; }
+.aiuf-qrow input[type=text] {
+  flex: 1; min-width: 0; border: 1px solid #e5e7eb; border-radius: 12px;
+  padding: 9px 12px; font-size: 12.5px; outline: none; background: #f9fafb;
+  transition: border-color .15s, background .15s, box-shadow .15s;
+}
+.aiuf-qrow input[type=text]:focus { border-color: #a5b4fc; background: #fff; box-shadow: 0 0 0 3px rgba(106, 92, 255, .08); }
+.aiuf-qrow .aiuf-btn { padding: 9px 14px; margin: 0; white-space: nowrap; font-size: 12.5px; }
+
+/* ---------- 预设筛选模式 ---------- */
+.aiuf-modes { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 10px 0 2px; }
+.aiuf-modelabel { font-size: 12px; color: #6b7280; }
+.aiuf-pill {
+  border: 1px solid #e3e5f2; background: #f6f7fd; color: #4a3fd6;
+  border-radius: 999px; padding: 6px 12px; font-size: 12px; cursor: pointer;
+  transition: background .15s, border-color .15s, transform .1s;
+}
+.aiuf-pill:hover:not(:disabled) { background: #eceefe; border-color: #b9baf7; transform: translateY(-1px); }
+.aiuf-pill:disabled { opacity: .5; cursor: not-allowed; }

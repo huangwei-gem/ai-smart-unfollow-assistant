@@ -1,0 +1,15 @@
+# 测试产物、凭据与大文件不入库
+_test/profile3/
+_test/profile/
+_test/profile2/
+_test/cft/
+_test/cft.zip
+_test/cft-chrome.zip
+_test/node_modules/
+# 参考仓库与外部工具（各自是独立 git 仓库）
+_reference/
+_tools/
+*.log
+.git.boss-backup/
+Thumbs.db
+.DS_Store
