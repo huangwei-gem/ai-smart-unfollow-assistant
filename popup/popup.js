@@ -28,7 +28,14 @@ async function save() {
     return;
   }
   const r = await chrome.runtime.sendMessage({ type: 'SAVE_SETTINGS', settings });
-  if (r && r.ok) showMsg('ok', '已保存 ✓');
+  if (r && r.ok) {
+    showMsg('ok', '已保存 ✓');
+    // 通知所有平台页面的面板：接口已切换（面板会显示提示，不做破坏性操作）
+    try {
+      const tabs = await chrome.tabs.query({});
+      tabs.forEach((t) => { try { chrome.tabs.sendMessage(t.id, { type: 'AIUF_ENDPOINT_CHANGED' }).catch(() => {}); } catch (_) {} });
+    } catch (_) {}
+  }
   else showMsg('err', '保存失败：' + ((r && r.error) || '未知错误'));
 }
 

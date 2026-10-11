@@ -40,9 +40,12 @@
     userQuery: '',           // 自定义筛选描述
     filtering: false,        // AI 筛选进行中（预设/自定义共用）
     filterLabel: '',         // 当前筛选模式名
-    filterProgress: null,    // {done,total}
-    filterNote: null,        // 筛选结果提示
-  };
+filterProgress: null,    // {done,total}
+filterNote: null,        // 筛选结果提示
+deepVideo: true,         // 深度识别：抓取近期视频标题辅助判定（仅 B站）
+videoProgress: null,     // {done,total} 深度识别进度
+notice: null,            // 软提示（如接口已切换）
+};
 
   // ---------- 工具 ----------
   function esc(s) {
@@ -86,6 +89,7 @@ const raw = a.raw || {};
 // 注：抖音 each_follow 实测恒为 true，无信息量，不传 mutual
 if (raw.official) o.official = true;
 if (raw.vip) o.vip = true;
+if (a.videos) o.videos = a.videos;
 return o;
 });
 }
@@ -115,10 +119,42 @@ loadCache(kind).then((c) => { c[uid] = entry; saveCache(kind, c); });
 }
 
   // ============================================================
+  // 深度识别：为待 AI 识别的账号补充「近期视频标题」信号（仅 B站 支持）
+  // 适配器内 3 天缓存；失败容忍；最多 VID_CAP 个防超大列表拖太久
+  // ============================================================
+  const VID_CAP = 150;
+  async function enrichWithVideos(targets, shouldStop) {
+    const adapter = S.platform && S.platform.adapter;
+    if (!S.deepVideo || !adapter || typeof adapter.fetchRecentVideos !== 'function') return;
+    if (S.platform.name !== 'bilibili') { log('深度识别：当前平台暂不支持视频信号，已跳过'); return; }
+    const list = targets.filter((a) => !a.videos).slice(0, VID_CAP);
+    if (!list.length) return;
+    if (targets.length > VID_CAP) log(`深度识别：账号较多，仅处理前 ${VID_CAP} 个（其余用昵称/签名判定）`);
+    log(`深度识别：为 ${list.length} 位博主抓取近期视频标题（2 路并发，3 天缓存）…`);
+    S.videoProgress = { done: 0, total: list.length };
+    render();
+    let done = 0, ok = 0, idx = 0;
+    async function worker() {
+      while (idx < list.length && !(shouldStop && shouldStop())) {
+        const a = list[idx++];
+        const titles = await adapter.fetchRecentVideos(a.uid, 3);
+        if (titles && titles.length) { a.videos = titles.join(' ｜ '); ok++; }
+        done++;
+        S.videoProgress = { done, total: list.length };
+        if (done % 10 === 0 || done === list.length) { log(`深度识别进度 ${done}/${list.length}（命中 ${ok}）`); render(); }
+      }
+    }
+    await Promise.all(Array.from({ length: 2 }, () => worker()));
+    S.videoProgress = null;
+    render();
+    log(`深度识别完成：${ok}/${list.length} 个账号拿到近期视频标题`);
+  }
+
+  // ============================================================
   // AI 分类
   // ============================================================
   const PROMPT_TMPL = `你是一个社交媒体关注列表分析助手。下面是用户关注的部分账号（JSON 数组）。
-字段说明：name 昵称；sign 完整简介签名；official=true 表示官方认证号；vip=true 表示大会员（B站，通常为活跃用户）。
+字段说明：name 昵称；sign 完整简介签名；official=true 表示官方认证号；vip=true 表示大会员（B站，通常为活跃用户）；videos 近期视频标题（「N天前」前缀为距今天数；可能缺失，缺失时忽略该信号）。
 
 判断时请综合参考以下维度（参考蝉妈妈/飞瓜数据等达人分析平台的评估体系）：
 【价值信号】内容垂直单一领域；昵称/签名体现真实创作意图（记录/教学/分享）；认证号、大会员通常更活跃。
@@ -126,6 +162,7 @@ loadCache(kind).then((c) => { c[uid] = entry; saveCache(kind, c); });
 【擦边信号】性暗示挑逗文字、身材诱惑、软色情诱导话术，表面挂穿搭/舞蹈/摄影实则靠性张力吸粉。
 【僵尸号信号】签名为空且昵称无意义、疑似一次性活动号/节日号（关注理由已消失）、纯搬运无原创。
 【熟人信号】昵称像真实姓名或日常网名。
+【近期视频信号】视频标题反映内容领域、更新频率与质量；「N天前」天数很大说明长期未更新（疑似僵尸号）；标题党、广告导流、夸大营销密集的归入营销号或不感兴趣。
 
 请把每个账号归入以下类别之一：
 - 常看博主：内容垂直、质量高，用户大概率仍想看的创作者
@@ -222,6 +259,7 @@ loadCache(kind).then((c) => { c[uid] = entry; saveCache(kind, c); });
       render();
       return;
     }
+    await enrichWithVideos(needAi, () => !S.aiRunning);
 
     // 读取设置
     let settings = null;
@@ -305,8 +343,8 @@ loadCache(kind).then((c) => { c[uid] = entry; saveCache(kind, c); });
   // AI 筛选：预设模式（默认玩法）+ 自定义描述，共用「勾选 uid」管线
   // ============================================================
   const FILTER_PROMPT = `你是一个社交媒体账号筛选助手。下面是用户的关注账号列表（JSON 数组）。
-字段说明：name 昵称；sign 完整简介签名；official=true 官方认证；vip=true 大会员（B站）。
-用户会给出一段筛选描述，请综合昵称、签名、账号特征从列表中选出符合描述的账号。
+字段说明：name 昵称；sign 完整简介签名；official=true 官方认证；vip=true 大会员（B站）；videos 近期视频标题（「N天前」为距今天数，可能缺失）。
+用户会给出一段筛选描述，请综合昵称、签名、近期视频标题、账号特征从列表中选出符合描述的账号。
 
 输出要求：严格输出 JSON 数组，不要输出任何其它文字或 markdown 代码块标记。
 格式：["uid1","uid2"]
@@ -325,6 +363,7 @@ prompt: `你是一个社交媒体账号审查助手。下面是用户的关注�
 - 昵称暧昧+大量装饰符号（🌸💞♦️类）、「单身/离异/交友/处对象」标签
 - 表面挂「穿搭/舞蹈/摄影/情感」标签，实则明显靠性张力引流吸粉
 - 签名引导到站外私域（微信变体、二维码暗语）
+- 近期视频标题（videos）带性暗示、福利、诱惑性话术或站外导流暗示
 注意：正常舞蹈/健身/穿搭创作者、官方媒体号不算擦边，不要误伤。
 
 输出要求：严格输出 JSON 数组，不要输出任何其它文字或 markdown 代码块标记。
@@ -343,6 +382,7 @@ prompt: `你是一个社交媒体关注列表分析助手。下面是用户关�
 - 签名有停更说明、久未更新迹象、或纯转发搬运无原创
 - 疑似批量营销号/AI 批量生成内容、三无小号
 - 签名与昵称完全看不出内容方向、无法产生持续价值
+- 近期视频标题（videos）前缀「N天前」天数很大，说明长期停更；或近期内容仍无持续关注价值
 注意：昵称像真实姓名的疑似好友、明显优质垂直创作者（含认证号/大会员）、正常生活记录号不要选。
 
 输出要求：严格输出 JSON 数组，不要输出任何其它文字或 markdown 代码块标记。
@@ -355,6 +395,7 @@ prompt: `你是一个社交媒体关注列表分析助手。下面是用户关�
   };
 
   const DOMAIN_PROMPT = `你是一个社交媒体账号分析助手。下面是用户的关注账号列表（JSON 数组，字段见说明）。
+字段 videos 为近期视频标题（「N天前」为距今天数）：结合它判断内容领域更准确；缺失时按昵称/签名判断。
 请给每个账号打一个内容领域标签，参考以下类目体系（参考飞瓜数据/新抖的达人分类）：
 美食、美妆、穿搭时尚、颜值、剧情段子、搞笑、音乐、舞蹈、游戏、动漫、影视综艺、明星娱乐、三农、汽车、数码科技、知识科普、财经、房产、母婴育儿、教育培训、体育、健身、旅游户外、宠物、情感、职场、家居生活、艺术绘画、Vlog日常、带货直播、新闻资讯、公益正能量。
 要求：领域名不超过 6 个字，优先使用上述参考标签（B站 UP主可按 B站分区归类：如鬼畜归搞笑、番剧归动漫）；无法判断时用「其他」。
@@ -391,6 +432,7 @@ prompt: `你是一个社交媒体关注列表分析助手。下面是用户关�
       }
       log(cacheHit ? `缓存命中 ${cacheHit} 人，本次只需新识别 ${needAi.length} 人` : '无缓存，本次全量识别 ' + needAi.length + ' 人');
     }
+    if (needAi.length) await enrichWithVideos(needAi, () => !S.filtering);
 
     let settings = null;
     try { settings = await chrome.runtime.sendMessage({ type: 'GET_SETTINGS' }); } catch (_) {}
@@ -496,6 +538,7 @@ prompt: `你是一个社交媒体关注列表分析助手。下面是用户关�
       else needAi.push(a);
     }
     log(cacheHit ? `缓存命中 ${cacheHit} 人，本次只需新识别 ${needAi.length} 人` : '无缓存，本次全量识别 ' + needAi.length + ' 人');
+    if (needAi.length) await enrichWithVideos(needAi, () => !S.filtering);
 
     let settings = null;
     try { settings = await chrome.runtime.sendMessage({ type: 'GET_SETTINGS' }); } catch (_) {}
@@ -586,6 +629,7 @@ prompt: `你是一个社交媒体关注列表分析助手。下面是用户关�
     S.accounts = [];
     S.error = null;
     S.logs = [];
+    clearSession();
     S.fetchAbort = new AbortController();
     render();
     const t0 = Date.now();
@@ -656,7 +700,48 @@ prompt: `你是一个社交媒体关注列表分析助手。下面是用户关�
     log(`执行结束：成功 ${ok}，失败 ${fail}`);
     S.execResult = { ok, fail, stopped: signal.aborted };
     S.phase = PHASE.DONE;
+    clearSession();
     render();
+  }
+
+  // ============================================================
+  // 进度持久化：页面刷新/意外关闭后恢复抓取结果与 AI 分类（REVIEWING 态）
+  // 存 chrome.storage.local，有效期 2 小时，且仅同平台同页恢复；
+  // 进行中的 AI 请求无法跨刷新恢复（脚本已随页面重建），但已完成的部分分类会保留。
+  // ============================================================
+  const SESSION_KEY = 'aiuf_session_v1';
+  const SESSION_TTL = 2 * 3600 * 1000;
+  let saveTimer = null;
+  function persistSession() {
+    if (S.phase !== PHASE.REVIEWING || !S.accounts.length) return;
+    if (saveTimer) return;
+    saveTimer = setTimeout(() => {
+      saveTimer = null;
+      try {
+        const snap = {
+          platform: S.platform && S.platform.name,
+          accounts: S.accounts.map((a) => ({ uid: a.uid, name: a.name, sign: a.sign, avatar: a.avatar, raw: a.raw, category: a.category, checked: a.checked, videos: a.videos })),
+          t: Date.now(),
+        };
+        chrome.storage.local.set({ [SESSION_KEY]: snap }).catch(() => {});
+      } catch (_) {}
+    }, 600);
+  }
+  async function restoreSession() {
+    try {
+      const d = await chrome.storage.local.get(SESSION_KEY);
+      const s = d[SESSION_KEY];
+      if (!s || !Array.isArray(s.accounts) || !s.accounts.length) return;
+      if (Date.now() - s.t > SESSION_TTL) return;
+      if (!S.platform || s.platform !== S.platform.name) return;
+      S.accounts = s.accounts;
+      S.phase = PHASE.REVIEWING;
+      log(`已恢复上次会话：${s.accounts.length} 个关注及其 AI 分类（快照 ${Math.max(1, Math.round((Date.now() - s.t) / 60000))} 分钟前）`);
+    } catch (_) {}
+  }
+  function clearSession() {
+    if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; }
+    try { chrome.storage.local.remove(SESSION_KEY).catch(() => {}); } catch (_) {}
   }
 
   // ============================================================
@@ -701,12 +786,13 @@ prompt: `你是一个社交媒体关注列表分析助手。下面是用户关�
     } else {
       inner = `
         <div class="aiuf-panel">
-          <div class="aiuf-head"><b>🧹 AI 智能取关助手 <span class="aiuf-ver">v1.7</span></b><span class="aiuf-close" id="aiuf-close">✕</span></div>
+          <div class="aiuf-head"><b>🧹 AI 智能取关助手 <span class="aiuf-ver">v1.8</span></b><span class="aiuf-close" id="aiuf-close">✕</span></div>
           <div class="aiuf-body">${renderBody(hint)}</div>
         </div>`;
     }
     rootEl.innerHTML = inner;
     bind();
+    persistSession();
   }
 
   function renderBody(hint) {
@@ -779,8 +865,10 @@ prompt: `你是一个社交媒体关注列表分析助手。下面是用户关�
       </div>
       ${S.filtering && S.filterProgress ? `<div class="aiuf-progress"><div style="width:${Math.max(3, Math.round(S.filterProgress.done / Math.max(1, S.filterProgress.total) * 100))}%"></div></div><div class="aiuf-mini">${esc(S.filterLabel || '筛选中')} ${S.filterProgress.done}/${S.filterProgress.total}…</div>` : ''}
       ${S.filterNote ? `<div class="aiuf-hint">✅ ${esc(S.filterNote)}</div>` : ''}
+      ${S.notice ? `<div class="aiuf-hint">ℹ️ ${esc(S.notice)}<a data-act="dismiss-notice" style="margin-left:8px;cursor:pointer">知道了</a></div>` : ''}
       <div class="aiuf-toolbar">
         <button class="aiuf-btn primary" id="aiuf-ai-run" ${aiBusy ? 'disabled' : ''}>${aiBusy ? 'AI 分析中…' : '② AI 分类'}</button>
+        ${S.platform.name === 'bilibili' ? `<label class="aiuf-deep" title="开启后 AI 会抓取博主近期视频标题辅助判定（更准但稍慢，3 天缓存）"><input type="checkbox" id="aiuf-deep" ${aiBusy || S.filtering ? 'disabled' : ''} ${S.deepVideo ? 'checked' : ''}>深度识别</label>` : ''}
         ${aiBusy && S.aiProgress ? `<span class="aiuf-mini">${S.aiProgress.done}/${S.aiProgress.total}</span>` : ''}
         <button class="aiuf-btn ghost" id="aiuf-ai-stop" ${aiBusy ? '' : 'disabled'}>停止分析</button>
         <input type="text" id="aiuf-filter" placeholder="搜索昵称…" value="${esc(S.nameFilter)}">
@@ -788,6 +876,7 @@ prompt: `你是一个社交媒体关注列表分析助手。下面是用户关�
 ${S.error ? `<div class="aiuf-err">${esc(S.error)}</div>
 ${/网络请求失败|Failed to fetch|CORS|所有接口均失败|权限/.test(S.error || '') ? '<button class="aiuf-btn" id="aiuf-fixperm" style="margin-top:6px">⚠ 一键修复接口权限</button>' : ''}` : ''}
 ${aiBusy && S.aiProgress ? `<div class="aiuf-progress"><div style="width:${S.aiProgress.total ? Math.round(S.aiProgress.done / S.aiProgress.total * 100) : 3}%"></div></div>` : ''}
+${S.videoProgress ? `<div class="aiuf-progress"><div style="width:${S.videoProgress.total ? Math.round(S.videoProgress.done / S.videoProgress.total * 100) : 3}%"></div></div><div class="aiuf-mini">深度识别：抓取近期视频标题 ${S.videoProgress.done}/${S.videoProgress.total}…</div>` : ''}
       ${renderLog(8)}
     `;
 
@@ -852,6 +941,15 @@ ${aiBusy && S.aiProgress ? `<div class="aiuf-progress"><div style="width:${S.aiP
     if (aiRun) aiRun.onclick = () => runAiClassify();
     const aiStop = $('aiuf-ai-stop');
     if (aiStop) aiStop.onclick = () => { S.aiRunning = false; };
+
+    const deep = $('aiuf-deep');
+    if (deep) deep.onchange = () => {
+      S.deepVideo = deep.checked;
+      try { chrome.storage.local.set({ aiuf_deep_video: S.deepVideo }).catch(() => {}); } catch (_) {}
+    };
+
+    const dismiss = document.querySelector('[data-act="dismiss-notice"]');
+    if (dismiss) dismiss.onclick = () => { S.notice = null; render(); };
 
     // 面板内一键修复接口权限（内容脚本里发起，用户点击即手势，无需打开弹窗）
     const fixperm = $('aiuf-fixperm');
@@ -965,6 +1063,7 @@ else { entry.c = el.value; updateCacheEntry('dom', acc.uid, entry); }
     ensureRoot();
     const hint = S.platform.adapter.pageHint();
     if (hint) log(hint);
+    restoreSession().then(() => { if (S.phase === PHASE.REVIEWING) render(); });
   }
 
   // 弹窗唤起面板
@@ -974,7 +1073,19 @@ else { entry.c = el.value; updateCacheEntry('dom', acc.uid, entry); }
       S.collapsed = false;
       render();
     }
+    if (msg && msg.type === 'AIUF_ENDPOINT_CHANGED') {
+      S.notice = 'AI 接口已切换。已有识别结果仍然有效；若新接口表现异常，可在插件弹窗「清空 AI 缓存」后重新识别。';
+      log('检测到 AI 接口已切换');
+      render();
+    }
   });
+
+  // 恢复深度识别开关的持久化设置
+  try {
+    chrome.storage.local.get('aiuf_deep_video').then((d) => {
+      if (typeof d.aiuf_deep_video === 'boolean') { S.deepVideo = d.aiuf_deep_video; }
+    }).catch(() => {});
+  } catch (_) {}
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', boot);

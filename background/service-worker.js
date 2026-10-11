@@ -53,10 +53,25 @@ let EP_HEALTH = {};
 try {
   chrome.storage.local.get(HEALTH_KEY).then((d) => { EP_HEALTH = d[HEALTH_KEY] || {}; }).catch(() => {});
 } catch (_) {}
+
+// 激进熔断：10 分钟内连败 ≥3 次的接口沉底到链尾（其他接口全部失败才再试它），
+// 避免每次请求都依次撞死接口、每题耗 25s 超时
+const MELT_WINDOW_MS = 10 * 60 * 1000;
+const MELT_THRESHOLD = 3;
+function isMelted(name) {
+  const h = EP_HEALTH[name];
+  if (!h || !Array.isArray(h.fails)) return false;
+  return h.fails.filter((t) => Date.now() - t < MELT_WINDOW_MS).length >= MELT_THRESHOLD;
+}
 function recordHealth(name, ok) {
-  const h = EP_HEALTH[name] || { fail: 0, lastOk: 0 };
-  if (ok) { h.fail = 0; h.lastOk = Date.now(); }
-  else { h.fail++; h.lastFail = Date.now(); }
+  const h = EP_HEALTH[name] || { fail: 0, lastOk: 0, fails: [] };
+  if (ok) { h.fail = 0; h.lastOk = Date.now(); h.fails = []; }
+  else {
+    h.fail++; h.lastFail = Date.now();
+    h.fails = (h.fails || []).filter((t) => Date.now() - t < MELT_WINDOW_MS);
+    h.fails.push(Date.now());
+    if (h.fails.length > 5) h.fails.shift();
+  }
   EP_HEALTH[name] = h;
   try { chrome.storage.local.set({ [HEALTH_KEY]: EP_HEALTH }).catch(() => {}); } catch (_) {}
 }
@@ -227,6 +242,13 @@ async function handleAiChat(payload) {
     return (h.fail || 0) + cooling;
   };
   chain.sort((a, b) => hf(a) - hf(b));
+
+  // 熔断沉底：被拉黑的接口放链尾（其余全挂时才轮到它们，死接口不再拖慢正常请求）
+  const live = chain.filter((e) => !isMelted(e.name));
+  const melted = chain.filter((e) => isMelted(e.name));
+  if (melted.length) console.warn('[AI取关] 熔断沉底', melted.length, '个接口：', melted.map((e) => e.name).join('、'));
+  chain.length = 0;
+  chain.push(...live, ...melted);
 
   const errors = [];
   for (const ep of chain) {
