@@ -234,6 +234,7 @@ loadCache(kind).then((c) => { c[uid] = entry; saveCache(kind, c); });
     let done = 0;
     let failBatches = 0;
     let firstErr = '';
+    let newHit = 0;
     const totalCount = needAi.length;
     const workers = U.clamp(parseInt(settings && settings.parallel, 10) || 3, 1, 6);
 
@@ -277,15 +278,18 @@ loadCache(kind).then((c) => { c[uid] = entry; saveCache(kind, c); });
           }
           saveCache('cls', cache);
           log(`AI 分类完成一批：${chunk.length} 人中成功匹配 ${hit} 人${resp.via ? `（接口：${resp.via}）` : ''}`);
+          newHit += hit;
         } catch (e) {
+          failBatches++;
+          if (!firstErr) firstErr = 'AI 返回解析失败：' + e.message;
           log(`AI 返回解析失败，本批保留「未分类」：${e.message}`);
         }
       },
     });
 
-    // 全部批次失败时，在面板上直接展示错误（不再只藏在折叠日志里）
-    if (failBatches > 0 && done > 0 && failBatches * batchSize >= totalCount) {
-      S.error = `AI 分类请求失败：${firstErr}。可点上方「一键修复接口权限」后重试，或手动编辑分类。`;
+    // 全部批次失败（含解析失败）或一个都没识别出来时，直接在面板上展示错误
+    if (needAi.length > 0 && (failBatches >= Math.ceil(totalCount / batchSize) || newHit === 0)) {
+      S.error = `AI 分类未成功：${firstErr || '所有批次均未产生有效结果'}。可点上方「一键修复接口权限」后重试，或稍后再试（免费接口可能临时限流）。`;
     }
 
     S.aiRunning = false;
@@ -422,6 +426,8 @@ prompt: `你是一个社交媒体关注列表分析助手。下面是用户关�
             saveCache(cacheKind, cache);
           }
         } catch (e) {
+          failBatches++;
+          if (!firstErr) firstErr = 'AI 返回解析失败：' + e.message;
           log(`AI 筛选返回解析失败，本批跳过：${e.message}`);
         }
       },
@@ -431,8 +437,9 @@ prompt: `你是一个社交媒体关注列表分析助手。下面是用户关�
     S.filterProgress = null;
     S.filterLabel = '';
 
-    if (failBatches > 0 && failBatches * batchSize >= needAi.length) {
-      S.error = `AI 筛选请求失败：${firstErr}。请检查接口配置后重试。`;
+    // 只有全部批次失败（请求失败或解析失败）才报错；AI 合法返回 0 命中是正常结果
+    if (needAi.length > 0 && failBatches >= Math.ceil(totalCount / batchSize)) {
+      S.error = `AI 筛选未成功：${firstErr || '所有批次均失败'}。请检查接口配置或稍后再试。`;
     } else {
       // 只勾选 AI 命中的账号（在已抓到的列表里的）
       let n = 0;
@@ -528,6 +535,8 @@ prompt: `你是一个社交媒体关注列表分析助手。下面是用户关�
           }
           saveCache('dom', cache);
         } catch (e) {
+          failBatches++;
+          if (!firstErr) firstErr = 'AI 返回解析失败：' + e.message;
           log(`领域分组返回解析失败，本批跳过：${e.message}`);
         }
       },
@@ -538,8 +547,8 @@ prompt: `你是一个社交媒体关注列表分析助手。下面是用户关�
     S.filterProgress = null;
     S.filterLabel = '';
 
-    if (failBatches > 0 && failBatches * batchSize >= needAi.length) {
-      S.error = `领域分组请求失败：${firstErr}。请检查接口配置后重试。`;
+    if (needAi.length > 0 && (failBatches >= Math.ceil(totalCount / batchSize) || hit === 0)) {
+      S.error = `领域分组未成功：${firstErr || '所有批次均未产生有效结果'}。请检查接口配置或稍后再试。`;
     } else {
       S.filterNote = `【按领域分组】已完成（缓存命中 ${cacheHit}，新识别 ${needAi.length}），可按组勾选后取关。`;
       log(`领域分组完成：命中 ${cacheHit} + 新识别 ${needAi.length} 人`);
