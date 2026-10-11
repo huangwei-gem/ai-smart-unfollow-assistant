@@ -91,8 +91,28 @@ return o;
 }
 
 function selectedCount() {
-    return S.accounts.filter(a => a.checked).length;
-  }
+return S.accounts.filter(a => a.checked).length;
+}
+
+// ============================================================
+// AI 结果缓存：chrome.storage.local，按 平台+uid 缓存；昵称/签名变更自动失效。
+// key: aiuf_cache_<platform>_<kind>，kind: cls 主分类 | dom 领域 | sel_<mode> 预设筛选 | q_<hash> 自定义筛选
+// 值: { [uid]: { c: 结果, r: 0/1（筛选命中）, h: 资料哈希, t: 时间戳 } }
+// 手动改分类也会写回缓存，用户的修正会被记住。
+// ============================================================
+function cacheKey(kind) { return 'aiuf_cache_' + ((S.platform && S.platform.name) || 'x') + '_' + kind; }
+function acctHash(a) { return (a.name || '') + '|' + (a.sign || ''); }
+function strHash(s) { let h = 0; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0; return (h >>> 0).toString(36); }
+async function loadCache(kind) {
+try { const k = cacheKey(kind); const d = await chrome.storage.local.get(k); return d[k] || {}; }
+catch (_) { return {}; }
+}
+function saveCache(kind, obj) {
+try { chrome.storage.local.set({ [cacheKey(kind)]: obj }).catch(() => {}); } catch (_) {}
+}
+function updateCacheEntry(kind, uid, entry) {
+loadCache(kind).then((c) => { c[uid] = entry; saveCache(kind, c); });
+}
 
   // ============================================================
   // AI 分类
@@ -142,6 +162,24 @@ function selectedCount() {
     S.aiRunning = true;
     S.error = null;
 
+    // 缓存命中：资料未变（昵称+签名哈希一致）的直接复用上次结果，只把新的/资料变更过的送给 AI
+    const cache = await loadCache('cls');
+    const needAi = [];
+    let cacheHit = 0;
+    for (const a of targets) {
+      const c = cache[a.uid];
+      if (c && c.h === acctHash(a) && CATEGORIES.includes(c.c)) { a.category = c.c; cacheHit++; }
+      else needAi.push(a);
+    }
+    log(cacheHit ? `缓存命中 ${cacheHit} 人，本次只需新识别 ${needAi.length} 人` : '无缓存，本次全量识别 ' + needAi.length + ' 人');
+    if (!needAi.length) {
+      log('全部账号均有有效缓存，已秒级完成，无需调用 AI');
+      S.aiRunning = false;
+      S.aiProgress = null;
+      render();
+      return;
+    }
+
     // 读取设置
     let settings = null;
     try {
@@ -154,10 +192,11 @@ function selectedCount() {
     let done = 0;
     let failBatches = 0;
     let firstErr = '';
-    for (let i = 0; i < targets.length; i += batchSize) {
+    const totalCount = needAi.length;
+    for (let i = 0; i < needAi.length; i += batchSize) {
       if (!S.aiRunning) { log('AI 分类已手动停止'); break; }
-      const chunk = targets.slice(i, i + batchSize);
-      S.aiProgress = { done, total: targets.length };
+      const chunk = needAi.slice(i, i + batchSize);
+      S.aiProgress = { done, total: totalCount };
       render();
 
 const payload = buildAiPayload(chunk);
@@ -194,9 +233,13 @@ const messages = [
           let hit = 0;
           for (const a of chunk) {
             const c = byUid.get(String(a.uid));
-            if (c && CATEGORIES.includes(c)) { a.category = c; hit++; }
+            if (c && CATEGORIES.includes(c)) {
+              a.category = c; hit++;
+              cache[a.uid] = { c, h: acctHash(a), t: Date.now() };
+            }
             else if (c) { a.category = UNSORTED; }
           }
+          saveCache('cls', cache);
           log(`AI 分类完成一批：${chunk.length} 人中成功匹配 ${hit} 人${resp.via ? `（接口：${resp.via}）` : ''}`);
         } catch (e) {
           log(`AI 返回解析失败，本批保留「未分类」：${e.message}`);
@@ -204,13 +247,13 @@ const messages = [
       }
 
       done += chunk.length;
-      S.aiProgress = { done, total: targets.length };
+      S.aiProgress = { done, total: totalCount };
       render();
-      if (i + batchSize < targets.length) await U.humanDelay(400, 900);
+      if (i + batchSize < needAi.length) await U.humanDelay(400, 900);
     }
 
     // 全部批次失败时，在面板上直接展示错误（不再只藏在折叠日志里）
-    if (failBatches > 0 && done > 0 && failBatches * batchSize >= targets.length) {
+    if (failBatches > 0 && done > 0 && failBatches * batchSize >= needAi.length) {
       S.error = `AI 分类请求失败：${firstErr}。可点上方「一键修复接口权限」后重试，或手动编辑分类。`;
     }
 
@@ -284,8 +327,8 @@ prompt: `你是一个社交媒体关注列表分析助手。下面是用户关�
 账号列表：
 `;
 
-  /** 通用「勾选 uid」筛选管线：预设模式与自定义共用 */
-  async function runAiSelect(promptText, noteLabel) {
+  /** 通用「勾选 uid」筛选管线：预设模式与自定义共用；cacheKind 传入时启用缓存（不重复识别） */
+  async function runAiSelect(promptText, noteLabel, cacheKind) {
     const targets = S.accounts;
     if (!targets.length) return;
 
@@ -294,19 +337,34 @@ prompt: `你是一个社交媒体关注列表分析助手。下面是用户关�
     S.filterNote = null;
     S.filterLabel = noteLabel;
 
+    // 缓存命中：资料未变的直接复用上次判定结果，只送新的/变更过的给 AI
+    const cache = cacheKind ? await loadCache(cacheKind) : null;
+    const needAi = [];
+    let cacheHit = 0;
+    const matched = new Set();
+    if (cache) {
+      for (const a of targets) {
+        const c = cache[a.uid];
+        if (c && c.h === acctHash(a)) {
+          if (c.r) matched.add(String(a.uid));
+          cacheHit++;
+        } else needAi.push(a);
+      }
+      log(cacheHit ? `缓存命中 ${cacheHit} 人，本次只需新识别 ${needAi.length} 人` : '无缓存，本次全量识别 ' + needAi.length + ' 人');
+    }
+
     let settings = null;
     try { settings = await chrome.runtime.sendMessage({ type: 'GET_SETTINGS' }); } catch (_) {}
     const batchSize = U.clamp(parseInt(settings && settings.batchSize, 10) || 40, 5, 100);
 
-    const matched = new Set();
     let done = 0;
     let failBatches = 0;
     let firstErr = '';
-
-    for (let i = 0; i < targets.length; i += batchSize) {
+    const totalCount = needAi.length;
+    for (let i = 0; i < needAi.length; i += batchSize) {
       if (!S.filtering) { log('AI 筛选已手动停止'); break; }
-      const chunk = targets.slice(i, i + batchSize);
-      S.filterProgress = { done, total: targets.length };
+      const chunk = needAi.slice(i, i + batchSize);
+      S.filterProgress = { done, total: totalCount };
       render();
 
 const payload = buildAiPayload(chunk);
@@ -329,23 +387,30 @@ const messages = [
       } else {
         try {
           const arr = parseAiJson(resp.content);
-          for (const uid of arr) { if (uid) matched.add(String(uid)); }
+          const uidSet = new Set();
+          for (const uid of arr) { if (uid) { uidSet.add(String(uid)); matched.add(String(uid)); } }
+          if (cache) {
+            for (const a of chunk) {
+              cache[a.uid] = { r: uidSet.has(String(a.uid)) ? 1 : 0, h: acctHash(a), t: Date.now() };
+            }
+            saveCache(cacheKind, cache);
+          }
         } catch (e) {
           log(`AI 筛选返回解析失败，本批跳过：${e.message}`);
         }
       }
 
       done += chunk.length;
-      S.filterProgress = { done, total: targets.length };
+      S.filterProgress = { done, total: totalCount };
       render();
-      if (i + batchSize < targets.length) await U.humanDelay(400, 900);
+      if (i + batchSize < needAi.length) await U.humanDelay(400, 900);
     }
 
     S.filtering = false;
     S.filterProgress = null;
     S.filterLabel = '';
 
-    if (failBatches > 0 && failBatches * batchSize >= targets.length) {
+    if (failBatches > 0 && failBatches * batchSize >= needAi.length) {
       S.error = `AI 筛选请求失败：${firstErr}。请检查接口配置后重试。`;
     } else {
       // 只勾选 AI 命中的账号（在已抓到的列表里的）
@@ -354,8 +419,9 @@ const messages = [
         a.checked = matched.has(String(a.uid));
         if (a.checked) n++;
       }
-      S.filterNote = `【${noteLabel}】已自动勾选 ${n} 个账号，确认无误后点下方红色按钮执行取关。`;
-      log(`AI 筛选完成：${noteLabel} → 勾选 ${n} 人`);
+      const cacheInfo = cache ? `（缓存命中 ${cacheHit}，新识别 ${needAi.length}）` : '';
+      S.filterNote = `【${noteLabel}】已自动勾选 ${n} 个账号${cacheInfo}，确认无误后点下方红色按钮执行取关。`;
+      log(`AI 筛选完成：${noteLabel} → 勾选 ${n} 人${cacheInfo}`);
     }
     render();
   }
@@ -363,7 +429,7 @@ const messages = [
   async function runAiPreset(mode) {
     const m = PRESET_MODES[mode];
     if (!m) return;
-    await runAiSelect(m.prompt, m.label);
+    await runAiSelect(m.prompt, m.label, 'sel_' + mode);
   }
 
   async function runAiCustom() {
@@ -373,10 +439,10 @@ const messages = [
       render();
       return;
     }
-    await runAiSelect(FILTER_PROMPT + q + '\n\n账号列表：\n', `自定义「${q}」`);
+    await runAiSelect(FILTER_PROMPT + q + '\n\n账号列表：\n', `自定义「${q}」`, 'q_' + strHash(q));
   }
 
-  /** 领域分组：AI 给每个账号打领域标签 → 复用分组视图展示，可按组勾选 */
+  /** 领域分组：AI 给每个账号打领域标签 → 复用分组视图展示，可按组勾选（结果同样走缓存，不重复识别） */
   async function runAiDomain() {
     const targets = S.accounts;
     if (!targets.length) return;
@@ -386,6 +452,16 @@ const messages = [
     S.filterNote = null;
     S.filterLabel = '按领域分组';
 
+    const cache = await loadCache('dom');
+    const needAi = [];
+    let cacheHit = 0;
+    for (const a of targets) {
+      const c = cache[a.uid];
+      if (c && c.h === acctHash(a) && c.c) { a.category = c.c; cacheHit++; }
+      else needAi.push(a);
+    }
+    log(cacheHit ? `缓存命中 ${cacheHit} 人，本次只需新识别 ${needAi.length} 人` : '无缓存，本次全量识别 ' + needAi.length + ' 人');
+
     let settings = null;
     try { settings = await chrome.runtime.sendMessage({ type: 'GET_SETTINGS' }); } catch (_) {}
     const batchSize = U.clamp(parseInt(settings && settings.batchSize, 10) || 40, 5, 100);
@@ -394,11 +470,13 @@ const messages = [
     let failBatches = 0;
     let firstErr = '';
     let hit = 0;
+    const totalCount = needAi.length;
 
-    for (let i = 0; i < targets.length; i += batchSize) {
+    if (needAi.length) {
+    for (let i = 0; i < needAi.length; i += batchSize) {
       if (!S.filtering) { log('领域分组已手动停止'); break; }
-      const chunk = targets.slice(i, i + batchSize);
-      S.filterProgress = { done, total: targets.length };
+      const chunk = needAi.slice(i, i + batchSize);
+      S.filterProgress = { done, total: totalCount };
       render();
 
 const payload = buildAiPayload(chunk);
@@ -423,28 +501,34 @@ const messages = [
           const arr = parseAiJson(resp.content);
           for (const item of arr) {
             const acc = S.accounts.find(x => x.uid === item.uid);
-            if (acc && item.category) { acc.category = String(item.category).slice(0, 8); hit++; }
+            if (acc && item.category) {
+              acc.category = String(item.category).slice(0, 8);
+              hit++;
+              cache[acc.uid] = { c: acc.category, h: acctHash(acc), t: Date.now() };
+            }
           }
+          saveCache('dom', cache);
         } catch (e) {
           log(`领域分组返回解析失败，本批跳过：${e.message}`);
         }
       }
 
       done += chunk.length;
-      S.filterProgress = { done, total: targets.length };
+      S.filterProgress = { done, total: totalCount };
       render();
-      if (i + batchSize < targets.length) await U.humanDelay(400, 900);
+      if (i + batchSize < needAi.length) await U.humanDelay(400, 900);
     }
+    } // end if needAi.length
 
     S.filtering = false;
     S.filterProgress = null;
     S.filterLabel = '';
 
-    if (failBatches > 0 && failBatches * batchSize >= targets.length) {
+    if (failBatches > 0 && failBatches * batchSize >= needAi.length) {
       S.error = `领域分组请求失败：${firstErr}。请检查接口配置后重试。`;
     } else {
-      S.filterNote = `【按领域分组】已完成，${hit} 个账号已归入各自领域，可按组勾选后取关。`;
-      log(`领域分组完成：${hit} 人`);
+      S.filterNote = `【按领域分组】已完成（缓存命中 ${cacheHit}，新识别 ${needAi.length}），可按组勾选后取关。`;
+      log(`领域分组完成：命中 ${cacheHit} + 新识别 ${needAi.length} 人`);
     }
     render();
   }
@@ -583,7 +667,7 @@ const messages = [
     } else {
       inner = `
         <div class="aiuf-panel">
-          <div class="aiuf-head"><b>🧹 AI 智能取关助手 <span class="aiuf-ver">v1.5</span></b><span class="aiuf-close" id="aiuf-close">✕</span></div>
+          <div class="aiuf-head"><b>🧹 AI 智能取关助手 <span class="aiuf-ver">v1.6</span></b><span class="aiuf-close" id="aiuf-close">✕</span></div>
           <div class="aiuf-body">${renderBody(hint)}</div>
         </div>`;
     }
@@ -804,11 +888,16 @@ ${aiBusy && S.aiProgress ? `<div class="aiuf-progress"><div style="width:${S.aiP
       };
     });
 
-    // 单个改分类
-    rootEl.querySelectorAll('select[data-role="cat"]').forEach((el) => {
-      el.onchange = () => {
-        const acc = S.accounts.find(x => x.uid === el.dataset.uid);
-        if (acc) acc.category = el.value;
+// 单个改分类（写回缓存，用户的修正会被记住，下次不再重复识别）
+rootEl.querySelectorAll('select[data-role="cat"]').forEach((el) => {
+el.onchange = () => {
+const acc = S.accounts.find(x => x.uid === el.dataset.uid);
+if (acc) {
+acc.category = el.value;
+const entry = { h: acctHash(acc), t: Date.now() };
+if (CATEGORIES.includes(el.value)) { entry.c = el.value; updateCacheEntry('cls', acc.uid, entry); }
+else { entry.c = el.value; updateCacheEntry('dom', acc.uid, entry); }
+}
         render();
       };
     });

@@ -128,4 +128,16 @@ $('openPanel').onclick = async () => {
   });
 };
 
+// 清空 AI 缓存：删除所有 aiuf_cache_* 键（分类/领域/筛选结果缓存）
+$('clearCache').onclick = async () => {
+  try {
+    const all = await chrome.storage.local.get(null);
+    const keys = Object.keys(all).filter((k) => k.startsWith('aiuf_cache_'));
+    await chrome.storage.local.remove(keys);
+    showMsg('ok', `已清空 AI 缓存（${keys.length} 类）。下次运行将重新识别全部账号。`);
+  } catch (e) {
+    showMsg('err', '清空缓存失败：' + (e && e.message || e));
+  }
+};
+
 load();
