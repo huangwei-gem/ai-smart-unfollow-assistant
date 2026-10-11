@@ -21,27 +21,39 @@ const DEFAULT_SETTINGS = {
 // 备用接口链：主接口失败（CORS 被撤权 / 限流 / 宕机）时自动逐个切换。
 // 全部为 2026-10-10 严格实测通过（真实发送分类消息并校验返回合格 JSON）的模型。
 // 注：AMD MiniCPM5-2B 已移除（返回空内容）；opencode 仅 space-bunny-free 可用（其余 free 模型 403 FreeTierError）。
+// 2026-10-11 全量重扫：所有接口逐模型真实调用验证过，按响应速度排序；
+// schema 校验 + 熔断会自动过滤后续变得不可用/不合规的接口
 const FALLBACK_ENDPOINTS = [
-  { name: 'agnes-2.5-pro-beta', baseUrl: 'https://apihub.agnes-ai.com/v1', apiKey: 'sk-P5tZ5ljBOWyNi85fVzabu633Vp88cmP78d4G7279f6k9KNQj', model: 'agnes-2.5-pro-beta' },
-  { name: 'agnes-3.0-flash', baseUrl: 'https://apihub.agnes-ai.com/v1', apiKey: 'sk-P5tZ5ljBOWyNi85fVzabu633Vp88cmP78d4G7279f6k9KNQj', model: 'agnes-3.0-flash' },
+  // —— 第一梯队：1-3s 快接口 ——
   { name: '商汤 deepseek-v4-flash', baseUrl: 'https://token.sensenova.cn/v1', apiKey: 'sk-F3WGt9cnsCrduZMyhyTYMEEKYJWE1Mzn', model: 'deepseek-v4-flash' },
   { name: '商汤备用Key deepseek-v4-flash', baseUrl: 'https://token.sensenova.cn/v1', apiKey: 'sk-Pw4XHALKoM3MYleuICN6F2vfp2GP1QUl', model: 'deepseek-v4-flash' },
-  { name: 'AMD DeepSeek-V4-Flash', baseUrl: 'https://developer.amd.com.cn/radeon/api/v1', apiKey: 'rc-ee98411a4be1ae0e3522888415af21cad30c3940981af7fa', model: 'DeepSeek-V4-Flash' },
   { name: 'AMD DeepSeek-V4.1-Flash', baseUrl: 'https://developer.amd.com.cn/radeon/api/v1', apiKey: 'rc-ee98411a4be1ae0e3522888415af21cad30c3940981af7fa', model: 'DeepSeek-V4.1-Flash' },
-  { name: 'agnes-3.0-flash-max', baseUrl: 'https://apihub.agnes-ai.com/v1', apiKey: 'sk-P5tZ5ljBOWyNi85fVzabu633Vp88cmP78d4G7279f6k9KNQj', model: 'agnes-3.0-flash-max' },
-  { name: 'agnes-2.5-pro-alpha', baseUrl: 'https://apihub.agnes-ai.com/v1', apiKey: 'sk-P5tZ5ljBOWyNi85fVzabu633Vp88cmP78d4G7279f6k9KNQj', model: 'agnes-2.5-pro-alpha' },
-  { name: 'agnes-2.5-flash', baseUrl: 'https://apihub.agnes-ai.com/v1', apiKey: 'sk-P5tZ5ljBOWyNi85fVzabu633Vp88cmP78d4G7279f6k9KNQj', model: 'agnes-2.5-flash' },
-  { name: 'AMD MiMo-V2.6-Flash', baseUrl: 'https://developer.amd.com.cn/radeon/api/v1', apiKey: 'rc-ee98411a4be1ae0e3522888415af21cad30c3940981af7fa', model: 'MiMo-V2.6-Flash' },
-  { name: 'AMD DeepSeek-V4-Flash-Vision-Exp', baseUrl: 'https://developer.amd.com.cn/radeon/api/v1', apiKey: 'rc-ee98411a4be1ae0e3522888415af21cad30c3940981af7fa', model: 'DeepSeek-V4-Flash-Vision-Exp' },
+  { name: 'AMD DeepSeek-V4-Flash', baseUrl: 'https://developer.amd.com.cn/radeon/api/v1', apiKey: 'rc-ee98411a4be1ae0e3522888415af21cad30c3940981af7fa', model: 'DeepSeek-V4-Flash' },
   { name: 'AMD Qwen3.8-Flash-Next', baseUrl: 'https://developer.amd.com.cn/radeon/api/v1', apiKey: 'rc-ee98411a4be1ae0e3522888415af21cad30c3940981af7fa', model: 'Qwen3.8-Flash-Next' },
-  { name: 'AMD Gemma-4-31B-IT', baseUrl: 'https://developer.amd.com.cn/radeon/api/v1', apiKey: 'rc-ee98411a4be1ae0e3522888415af21cad30c3940981af7fa', model: 'Gemma-4-31B-IT' },
-  { name: 'opencode space-bunny-free', baseUrl: 'https://opencode.ai/zen/v1', apiKey: 'sk-NKrrY96pSd8PK2PFjiyb2oJJgNVg6X1iagE1hfPgeDQDECmBejcJAHxdn9Zt8quN', model: 'space-bunny-free' },
-  { name: '商汤 glm-5.2', baseUrl: 'https://token.sensenova.cn/v1', apiKey: 'sk-F3WGt9cnsCrduZMyhyTYMEEKYJWE1Mzn', model: 'glm-5.2' },
-  { name: '商汤 sensenova-6.8-flash-lite', baseUrl: 'https://token.sensenova.cn/v1', apiKey: 'sk-F3WGt9cnsCrduZMyhyTYMEEKYJWE1Mzn', model: 'sensenova-6.8-flash-lite' },
+  { name: 'AMD MiMo-V2.6-Flash', baseUrl: 'https://developer.amd.com.cn/radeon/api/v1', apiKey: 'rc-ee98411a4be1ae0e3522888415af21cad30c3940981af7fa', model: 'MiMo-V2.6-Flash' },
   { name: 'AMD Qwen3.8-27B', baseUrl: 'https://developer.amd.com.cn/radeon/api/v1', apiKey: 'rc-ee98411a4be1ae0e3522888415af21cad30c3940981af7fa', model: 'Qwen3.8-27B' },
-  { name: 'NVIDIA z-ai/glm-5.3-flash', baseUrl: 'https://integrate.api.nvidia.com/v1', apiKey: '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', model: 'z-ai/glm-5.3-flash' },
-  { name: 'AMD GLM-5.3-Flash', baseUrl: 'https://developer.amd.com.cn/radeon/api/v1', apiKey: 'rc-ee98411a4be1ae0e3522888415af21cad30c3940981af7fa', model: 'GLM-5.3-Flash' },
+  { name: '商汤 sensenova-6.8-flash-lite', baseUrl: 'https://token.sensenova.cn/v1', apiKey: 'sk-F3WGt9cnsCrduZMyhyTYMEEKYJWE1Mzn', model: 'sensenova-6.8-flash-lite' },
+  { name: 'agnes-2.5-flash', baseUrl: 'https://apihub.agnes-ai.com/v1', apiKey: 'sk-P5tZ5ljBOWyNi85fVzabu633Vp88cmP78d4G7279f6k9KNQj', model: 'agnes-2.5-flash' },
   { name: '点点笔记 dots3-note-prev', baseUrl: 'https://note3-prev-api.askdiandian.com/v1', apiKey: 'ak_iGxurHneP9HveEQ5cJRuAvZQDJeDI', model: 'dots3-note-prev' },
+  { name: 'NVIDIA nemotron-3-super', baseUrl: 'https://integrate.api.nvidia.com/v1', apiKey: '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', model: 'nvidia/nemotron-3-super-120b-a12b' },
+  { name: 'NVIDIA nemotron-3-ultra', baseUrl: 'https://integrate.api.nvidia.com/v1', apiKey: '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', model: 'nvidia/nemotron-3-ultra-550b-a55b' },
+  { name: 'NVIDIA gpt-oss-20b', baseUrl: 'https://integrate.api.nvidia.com/v1', apiKey: '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', model: 'openai/gpt-oss-20b' },
+  { name: 'NVIDIA nemotron-3-nano-omni', baseUrl: 'https://integrate.api.nvidia.com/v1', apiKey: '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', model: 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning' },
+  { name: 'NVIDIA z-ai/glm-5.3-flash', baseUrl: 'https://integrate.api.nvidia.com/v1', apiKey: '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', model: 'z-ai/glm-5.3-flash' },
+  { name: 'NVIDIA diffusiongemma-26b', baseUrl: 'https://integrate.api.nvidia.com/v1', apiKey: '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', model: 'google/diffusiongemma-26b-a4b-it' },
+  { name: 'NVIDIA deepseek-v4.1-flash', baseUrl: 'https://integrate.api.nvidia.com/v1', apiKey: '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', model: 'deepseek-ai/deepseek-v4.1-flash' },
+  { name: 'NVIDIA muse-glimmer-30b', baseUrl: 'https://integrate.api.nvidia.com/v1', apiKey: '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', model: 'meta/muse-glimmer-30b' },
+  { name: 'AMD DeepSeek-V4-Flash-Vision-Exp', baseUrl: 'https://developer.amd.com.cn/radeon/api/v1', apiKey: 'rc-ee98411a4be1ae0e3522888415af21cad30c3940981af7fa', model: 'DeepSeek-V4-Flash-Vision-Exp' },
+  { name: 'AMD Gemma-4-31B-IT', baseUrl: 'https://developer.amd.com.cn/radeon/api/v1', apiKey: 'rc-ee98411a4be1ae0e3522888415af21cad30c3940981af7fa', model: 'Gemma-4-31B-IT' },
+  { name: 'NVIDIA llama-3.2-11b-vision', baseUrl: 'https://integrate.api.nvidia.com/v1', apiKey: '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', model: 'meta/llama-3.2-11b-vision-instruct' },
+  { name: 'NVIDIA poolside laguna-xs', baseUrl: 'https://integrate.api.nvidia.com/v1', apiKey: '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', model: 'poolside/laguna-xs-2.1' },
+  // —— 第二梯队：可用但较慢（23-26s）或有限制 ——
+  { name: '商汤 glm-5.2', baseUrl: 'https://token.sensenova.cn/v1', apiKey: 'sk-F3WGt9cnsCrduZMyhyTYMEEKYJWE1Mzn', model: 'glm-5.2' },
+  { name: '商汤 kimi-k3', baseUrl: 'https://token.sensenova.cn/v1', apiKey: 'sk-F3WGt9cnsCrduZMyhyTYMEEKYJWE1Mzn', model: 'kimi-k3', temperature: 1 },
+  { name: '商汤 deepseek-flash', baseUrl: 'https://token.sensenova.cn/v1', apiKey: 'sk-F3WGt9cnsCrduZMyhyTYMEEKYJWE1Mzn', model: 'deepseek-flash' },
+  { name: 'agnes-3.0-flash', baseUrl: 'https://apihub.agnes-ai.com/v1', apiKey: 'sk-P5tZ5ljBOWyNi85fVzabu633Vp88cmP78d4G7279f6k9KNQj', model: 'agnes-3.0-flash' },
+  { name: 'AMD GLM-5.3-Flash', baseUrl: 'https://developer.amd.com.cn/radeon/api/v1', apiKey: 'rc-ee98411a4be1ae0e3522888415af21cad30c3940981af7fa', model: 'GLM-5.3-Flash' },
+  { name: 'NVIDIA ising-calibration', baseUrl: 'https://integrate.api.nvidia.com/v1', apiKey: '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', model: 'nvidia/ising-calibration-1.5-31b' },
 ];
 
 // 会话内记住当前可用的接口，下次请求优先使用（避免反复撞死接口）
@@ -145,7 +157,8 @@ async function tryEndpoint(ep, payload, temperature, retries = 0) {
   const body = {
     model: ep.model,
     messages: payload.messages || [],
-    temperature,
+    // 个别模型仅允许特定 temperature（如商汤 kimi-k3 只接受 1）
+    temperature: ep.temperature !== undefined ? ep.temperature : temperature,
     stream: false,
   };
 
