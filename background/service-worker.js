@@ -55,7 +55,8 @@ try {
 } catch (_) {}
 function recordHealth(name, ok) {
   const h = EP_HEALTH[name] || { fail: 0, lastOk: 0 };
-  if (ok) { h.fail = 0; h.lastOk = Date.now(); } else { h.fail++; }
+  if (ok) { h.fail = 0; h.lastOk = Date.now(); }
+  else { h.fail++; h.lastFail = Date.now(); }
   EP_HEALTH[name] = h;
   try { chrome.storage.local.set({ [HEALTH_KEY]: EP_HEALTH }).catch(() => {}); } catch (_) {}
 }
@@ -186,7 +187,13 @@ async function handleAiChat(payload) {
     if (idx > 0) chain.unshift(...chain.splice(idx, 1));
   }
   // 健康度排序：连续失败的接口排后面（Array.sort 稳定，同分保持原优先级）
-  const hf = (e) => (EP_HEALTH[e.name] || { fail: 0 }).fail;
+    // 健康度排序：失败次数多的排后；90 秒内刚失败过的额外重罚（冷却期），
+  // 并发请求会自动分散到不同接口，避免多个 worker 扎堆同一个限流接口
+  const hf = (e) => {
+    const h = EP_HEALTH[e.name] || { fail: 0 };
+    const cooling = h.lastFail && (Date.now() - h.lastFail < 90000) ? 6 : 0;
+    return (h.fail || 0) + cooling;
+  };
   chain.sort((a, b) => hf(a) - hf(b));
 
   const errors = [];

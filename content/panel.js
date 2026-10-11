@@ -153,6 +153,48 @@ loadCache(kind).then((c) => { c[uid] = entry; saveCache(kind, c); });
     return arr;
   }
 
+  // ============================================================
+  // AI 并发调度器：N 路（默认 3）并行消费同一批次队列，每批独立走 SW
+  // 故障转移链；worker 错峰启动 + 批间隔抖动，降低齐射触发限流的概率。
+  // opts: { items, batchSize, workers, shouldStop, setProgress, makeMessages, onResult }
+  //   shouldStop()  → true 时 worker 不再取新批（在途请求结果仍会回调）
+  //   onResult(chunk, resp, batchNo) → 成功/失败都回调，解析与缓存由调用方处理
+  // ============================================================
+  async function runAiConcurrent(opts) {
+    const { items, batchSize, workers, shouldStop, setProgress, makeMessages, onResult } = opts;
+    const total = items.length;
+    const totalBatches = Math.ceil(total / batchSize);
+    let cursor = 0;
+    let done = 0;
+    let batchNo = 0;
+
+    async function worker(wid) {
+      if (wid > 0) await U.humanDelay(700 + wid * 600, 1100 + wid * 600); // 错峰启动
+      while (!shouldStop()) {
+        if (cursor >= total) return;
+        const i = cursor; cursor += batchSize;
+        const chunk = items.slice(i, Math.min(i + batchSize, total));
+        const myNo = ++batchNo;
+        setProgress(done, total);
+        let resp;
+        try {
+          resp = await chrome.runtime.sendMessage({ type: 'AI_CHAT', payload: { messages: makeMessages(chunk) } });
+        } catch (e) {
+          resp = { ok: false, error: String(e && e.message || e) };
+        }
+        onResult(chunk, resp, myNo);
+        done += chunk.length;
+        setProgress(done, total);
+        if (cursor < total) await U.humanDelay(300, 900);
+      }
+    }
+
+    const n = Math.max(1, Math.min(workers | 0 || 3, 6, totalBatches || 1));
+    log(`并发调度：${n} 路并行，共 ${totalBatches} 批（每批 ${batchSize} 人）`);
+    await Promise.all(Array.from({ length: n }, (_, w) => worker(w)));
+    return { done, totalBatches };
+  }
+
   async function runAiClassify() {
     const adapter = S.platform && S.platform.adapter;
     if (!adapter) return;
@@ -193,37 +235,31 @@ loadCache(kind).then((c) => { c[uid] = entry; saveCache(kind, c); });
     let failBatches = 0;
     let firstErr = '';
     const totalCount = needAi.length;
-    for (let i = 0; i < needAi.length; i += batchSize) {
-      if (!S.aiRunning) { log('AI 分类已手动停止'); break; }
-      const chunk = needAi.slice(i, i + batchSize);
-      S.aiProgress = { done, total: totalCount };
-      render();
+    const workers = U.clamp(parseInt(settings && settings.parallel, 10) || 3, 1, 6);
 
-const payload = buildAiPayload(chunk);
-const messages = [
-{ role: 'system', content: '你是严谨的分类器，只输出要求的 JSON。' },
-{ role: 'user', content: PROMPT_TMPL + JSON.stringify(payload) },
-];
-
-      let resp;
-      try {
-        resp = await chrome.runtime.sendMessage({ type: 'AI_CHAT', payload: { messages } });
-      } catch (e) {
-        resp = { ok: false, error: String(e && e.message || e) };
-      }
-
-      if (!resp || !resp.ok) {
-        const err = (resp && resp.error) || '未知错误';
-        failBatches++;
-        if (!firstErr) firstErr = err;
-        S.lastAiErr = err;
-        log(`AI 请求失败（第 ${Math.floor(i / batchSize) + 1} 批）：${err}`);
-        if (err && /未配置/.test(err)) {
-          S.error = '未配置 AI 接口：请点击浏览器工具栏的插件图标，填写接口地址与 API Key 后重试。也可以手动编辑分类后直接执行。';
-          break;
+    await runAiConcurrent({
+      items: needAi,
+      batchSize,
+      workers,
+      shouldStop: () => S.aiRunning,
+      setProgress: (d, t) => { S.aiProgress = { done: d, total: t }; render(); },
+      makeMessages: (chunk) => [
+        { role: 'system', content: '你是严谨的分类器，只输出要求的 JSON。' },
+        { role: 'user', content: PROMPT_TMPL + JSON.stringify(buildAiPayload(chunk)) },
+      ],
+      onResult: (chunk, resp, no) => {
+        if (!resp || !resp.ok) {
+          const err = (resp && resp.error) || '未知错误';
+          failBatches++;
+          if (!firstErr) firstErr = err;
+          S.lastAiErr = err;
+          log(`AI 请求失败（第 ${no} 批）：${err}`);
+          if (err && /未配置/.test(err)) {
+            S.error = '未配置 AI 接口：请点击浏览器工具栏的插件图标，填写接口地址与 API Key 后重试。也可以手动编辑分类后直接执行。';
+            S.aiRunning = false; // 让其它 worker 也停下
+          }
+          return;
         }
-        // 单批失败不放弃整体，继续下一批
-      } else {
         try {
           const arr = parseAiJson(resp.content);
           const byUid = new Map();
@@ -244,16 +280,11 @@ const messages = [
         } catch (e) {
           log(`AI 返回解析失败，本批保留「未分类」：${e.message}`);
         }
-      }
-
-      done += chunk.length;
-      S.aiProgress = { done, total: totalCount };
-      render();
-      if (i + batchSize < needAi.length) await U.humanDelay(400, 900);
-    }
+      },
+    });
 
     // 全部批次失败时，在面板上直接展示错误（不再只藏在折叠日志里）
-    if (failBatches > 0 && done > 0 && failBatches * batchSize >= needAi.length) {
+    if (failBatches > 0 && done > 0 && failBatches * batchSize >= totalCount) {
       S.error = `AI 分类请求失败：${firstErr}。可点上方「一键修复接口权限」后重试，或手动编辑分类。`;
     }
 
@@ -361,30 +392,25 @@ prompt: `你是一个社交媒体关注列表分析助手。下面是用户关�
     let failBatches = 0;
     let firstErr = '';
     const totalCount = needAi.length;
-    for (let i = 0; i < needAi.length; i += batchSize) {
-      if (!S.filtering) { log('AI 筛选已手动停止'); break; }
-      const chunk = needAi.slice(i, i + batchSize);
-      S.filterProgress = { done, total: totalCount };
-      render();
+    const workers = U.clamp(parseInt(settings && settings.parallel, 10) || 3, 1, 6);
 
-const payload = buildAiPayload(chunk);
-const messages = [
-{ role: 'system', content: '你是严谨的筛选器，只输出要求的 JSON。' },
-        { role: 'user', content: promptText + JSON.stringify(payload) },
-      ];
-
-      let resp;
-      try {
-        resp = await chrome.runtime.sendMessage({ type: 'AI_CHAT', payload: { messages } });
-      } catch (e) {
-        resp = { ok: false, error: String(e && e.message || e) };
-      }
-
-      if (!resp || !resp.ok) {
-        failBatches++;
-        if (!firstErr) firstErr = (resp && resp.error) || '未知错误';
-        log(`AI 筛选请求失败（第 ${Math.floor(i / batchSize) + 1} 批）：${(resp && resp.error) || ''}`);
-      } else {
+    await runAiConcurrent({
+      items: needAi,
+      batchSize,
+      workers,
+      shouldStop: () => S.filtering,
+      setProgress: (d, t) => { S.filterProgress = { done: d, total: t }; render(); },
+      makeMessages: (chunk) => [
+        { role: 'system', content: '你是严谨的筛选器，只输出要求的 JSON。' },
+        { role: 'user', content: promptText + JSON.stringify(buildAiPayload(chunk)) },
+      ],
+      onResult: (chunk, resp, no) => {
+        if (!resp || !resp.ok) {
+          failBatches++;
+          if (!firstErr) firstErr = (resp && resp.error) || '未知错误';
+          log(`AI 筛选请求失败（第 ${no} 批）：${(resp && resp.error) || ''}`);
+          return;
+        }
         try {
           const arr = parseAiJson(resp.content);
           const uidSet = new Set();
@@ -398,13 +424,8 @@ const messages = [
         } catch (e) {
           log(`AI 筛选返回解析失败，本批跳过：${e.message}`);
         }
-      }
-
-      done += chunk.length;
-      S.filterProgress = { done, total: totalCount };
-      render();
-      if (i + batchSize < needAi.length) await U.humanDelay(400, 900);
-    }
+      },
+    });
 
     S.filtering = false;
     S.filterProgress = null;
@@ -471,53 +492,46 @@ const messages = [
     let firstErr = '';
     let hit = 0;
     const totalCount = needAi.length;
+    const workers = U.clamp(parseInt(settings && settings.parallel, 10) || 3, 1, 6);
 
     if (needAi.length) {
-    for (let i = 0; i < needAi.length; i += batchSize) {
-      if (!S.filtering) { log('领域分组已手动停止'); break; }
-      const chunk = needAi.slice(i, i + batchSize);
-      S.filterProgress = { done, total: totalCount };
-      render();
-
-const payload = buildAiPayload(chunk);
-const messages = [
-{ role: 'system', content: '你是严谨的分类器，只输出要求的 JSON。' },
-{ role: 'user', content: DOMAIN_PROMPT + JSON.stringify(payload) },
-];
-
-      let resp;
-      try {
-        resp = await chrome.runtime.sendMessage({ type: 'AI_CHAT', payload: { messages } });
-      } catch (e) {
-        resp = { ok: false, error: String(e && e.message || e) };
-      }
-
-      if (!resp || !resp.ok) {
-        failBatches++;
-        if (!firstErr) firstErr = (resp && resp.error) || '未知错误';
-        log(`领域分组请求失败（第 ${Math.floor(i / batchSize) + 1} 批）：${(resp && resp.error) || ''}`);
-      } else {
+    await runAiConcurrent({
+      items: needAi,
+      batchSize,
+      workers,
+      shouldStop: () => S.filtering,
+      setProgress: (d, t) => { S.filterProgress = { done: d, total: t }; render(); },
+      makeMessages: (chunk) => [
+        { role: 'system', content: '你是严谨的分类器，只输出要求的 JSON。' },
+        { role: 'user', content: DOMAIN_PROMPT + JSON.stringify(buildAiPayload(chunk)) },
+      ],
+      onResult: (chunk, resp, no) => {
+        if (!resp || !resp.ok) {
+          failBatches++;
+          if (!firstErr) firstErr = (resp && resp.error) || '未知错误';
+          log(`领域分组请求失败（第 ${no} 批）：${(resp && resp.error) || ''}`);
+          return;
+        }
         try {
           const arr = parseAiJson(resp.content);
+          const byUid = new Map();
           for (const item of arr) {
-            const acc = S.accounts.find(x => x.uid === item.uid);
-            if (acc && item.category) {
-              acc.category = String(item.category).slice(0, 8);
+            if (item && item.uid != null) byUid.set(String(item.uid), String(item.category || '').slice(0, 8));
+          }
+          for (const a of chunk) {
+            const c = byUid.get(String(a.uid));
+            if (c) {
+              a.category = c;
               hit++;
-              cache[acc.uid] = { c: acc.category, h: acctHash(acc), t: Date.now() };
+              cache[a.uid] = { c, h: acctHash(a), t: Date.now() };
             }
           }
           saveCache('dom', cache);
         } catch (e) {
           log(`领域分组返回解析失败，本批跳过：${e.message}`);
         }
-      }
-
-      done += chunk.length;
-      S.filterProgress = { done, total: totalCount };
-      render();
-      if (i + batchSize < needAi.length) await U.humanDelay(400, 900);
-    }
+      },
+    });
     } // end if needAi.length
 
     S.filtering = false;
@@ -667,7 +681,7 @@ const messages = [
     } else {
       inner = `
         <div class="aiuf-panel">
-          <div class="aiuf-head"><b>🧹 AI 智能取关助手 <span class="aiuf-ver">v1.6</span></b><span class="aiuf-close" id="aiuf-close">✕</span></div>
+          <div class="aiuf-head"><b>🧹 AI 智能取关助手 <span class="aiuf-ver">v1.7</span></b><span class="aiuf-close" id="aiuf-close">✕</span></div>
           <div class="aiuf-body">${renderBody(hint)}</div>
         </div>`;
     }
