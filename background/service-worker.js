@@ -20,7 +20,7 @@ const DEFAULT_SETTINGS = {
 
 // 备用接口链：主接口失败（CORS 被撤权 / 限流 / 宕机）时自动逐个切换。
 // 全部为 2026-10-10 严格实测通过（真实发送分类消息并校验返回合格 JSON）的模型。
-// 注：AMD MiniCPM5-2B 已移除（返回空内容）；opencode 仅 space-bunny-free 可用（其余 free 模型 403 FreeTierError）。
+// 注：opencode 全线移除（官方 FreeTierError 限制：free 模型只能在其自家客户端内调用，第三方直连一律 403）；AMD MiniCPM5-2B 移除（返回思考过程而非答案）。
 // 2026-10-11 全量重扫：所有接口逐模型真实调用验证过，按响应速度排序；
 // schema 校验 + 熔断会自动过滤后续变得不可用/不合规的接口
 const FALLBACK_ENDPOINTS = [
