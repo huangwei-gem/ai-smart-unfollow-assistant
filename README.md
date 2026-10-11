@@ -22,7 +22,7 @@
 
 ### 方式二：CRX
 
-`release/AI-Smart-Unfollow-v1.3.3.crx` 需配合同目录 `AI-Smart-Unfollow.pem`（Chrome 出于安全策略不允许直接拖拽安装第三方 CRX，建议用方式一）。
+`release/AI-Smart-Unfollow-v1.3.5.crx` 需配合同目录 `AI-Smart-Unfollow.pem`（Chrome 出于安全策略不允许直接拖拽安装第三方 CRX，建议用方式一）。
 
 ## 使用
 
@@ -66,7 +66,9 @@ release/               # 打包好的 CRX + 私钥
 
 ## 版本
 
-- v1.3.3（面板徽标 v1.4）：20 级 AI 故障转移链、严格实测 19 个模型、CRX 打包
+- v1.3.5（面板徽标 v1.5）：AI 判定全面升级——完整签名（不再截断 60 字）、蝉妈妈/飞瓜数据级评估维度、32 类领域标签体系、低质/营销号/擦边信号清单、认证/大会员徽标
+- v1.3.4：接入 opencode space-bunny-free 与 AMD Gemma-4-31B-IT，移除 MiniCPM5-2B
+- v1.3.3：21 级 AI 故障转移链、严格实测 19 个模型、CRX 打包、GitHub 开源
 - v1.3.0：擦边/不常看/领域分组三种快捷筛选 + 自定义描述筛选
 - v1.2.0：抖音接口直翻全量抓取、真实取关验证
 - v1.1.0：修复 B站分组接口失效、AI 接口接入、现代 UI

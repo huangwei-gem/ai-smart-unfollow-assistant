@@ -79,20 +79,40 @@
     return map;
   }
 
-  function selectedCount() {
+  function buildAiPayload(chunk) {
+return chunk.map(a => {
+const o = { uid: a.uid, name: a.name, sign: (a.sign || '').slice(0, 200) };
+const raw = a.raw || {};
+// 注：抖音 each_follow 实测恒为 true，无信息量，不传 mutual
+if (raw.official) o.official = true;
+if (raw.vip) o.vip = true;
+return o;
+});
+}
+
+function selectedCount() {
     return S.accounts.filter(a => a.checked).length;
   }
 
   // ============================================================
   // AI 分类
   // ============================================================
-  const PROMPT_TMPL = `你是一个社交媒体关注列表分析助手。下面是用户关注的部分账号（JSON 数组，字段：uid、name 昵称、sign 简介签名）。
+  const PROMPT_TMPL = `你是一个社交媒体关注列表分析助手。下面是用户关注的部分账号（JSON 数组）。
+字段说明：name 昵称；sign 完整简介签名；official=true 表示官方认证号；vip=true 表示大会员（B站，通常为活跃用户）。
+
+判断时请综合参考以下维度（参考蝉妈妈/飞瓜数据等达人分析平台的评估体系）：
+【价值信号】内容垂直单一领域；昵称/签名体现真实创作意图（记录/教学/分享）；认证号、大会员通常更活跃。
+【营销号/引流信号】签名或昵称藏联系方式（VX/微/谐音字/emoji 变体、「福利群」「看更多」「懂的来」）；带货/广告/招商/课程推销；虚假权威人设（大师/专家/导师）；卖惨博流量。
+【擦边信号】性暗示挑逗文字、身材诱惑、软色情诱导话术，表面挂穿搭/舞蹈/摄影实则靠性张力吸粉。
+【僵尸号信号】签名为空且昵称无意义、疑似一次性活动号/节日号（关注理由已消失）、纯搬运无原创。
+【熟人信号】昵称像真实姓名或日常网名。
+
 请把每个账号归入以下类别之一：
-- 常看博主：内容质量高、用户大概率仍想看的创作者（如明显的知识/技术/生活记录类）
-- 可能认识：昵称像真实姓名、疑似现实朋友同事同学
+- 常看博主：内容垂直、质量高，用户大概率仍想看的创作者
+- 可能认识：疑似现实朋友同事同学（看昵称特征）
 - 僵尸号：长期不活跃、无有效内容特征，或简介为空且昵称无意义
-- 营销号：广告、带货、推广、引流、微商性质明显
-- 不感兴趣：低价值、标题党、或没有充分理由继续关注的账号
+- 营销号：广告、带货、推广、引流、微商、虚假人设性质明显
+- 不感兴趣：低价值、标题党、擦边低俗、或没有充分理由继续关注的账号
 
 输出要求：严格输出 JSON 数组，不要输出任何其它文字或 markdown 代码块标记。
 格式：[{"uid":"账号uid","category":"类别名"}]
@@ -140,11 +160,11 @@
       S.aiProgress = { done, total: targets.length };
       render();
 
-      const payload = chunk.map(a => ({ uid: a.uid, name: a.name, sign: (a.sign || '').slice(0, 60) }));
-      const messages = [
-        { role: 'system', content: '你是严谨的分类器，只输出要求的 JSON。' },
-        { role: 'user', content: PROMPT_TMPL + JSON.stringify(payload) },
-      ];
+const payload = buildAiPayload(chunk);
+const messages = [
+{ role: 'system', content: '你是严谨的分类器，只输出要求的 JSON。' },
+{ role: 'user', content: PROMPT_TMPL + JSON.stringify(payload) },
+];
 
       let resp;
       try {
@@ -201,8 +221,9 @@
   // ============================================================
   // AI 筛选：预设模式（默认玩法）+ 自定义描述，共用「勾选 uid」管线
   // ============================================================
-  const FILTER_PROMPT = `你是一个社交媒体账号筛选助手。下面是用户的关注账号列表（JSON 数组，字段：uid、name 昵称、sign 简介签名）。
-用户会给出一段筛选描述，请从列表中选出符合描述的账号。
+  const FILTER_PROMPT = `你是一个社交媒体账号筛选助手。下面是用户的关注账号列表（JSON 数组）。
+字段说明：name 昵称；sign 完整简介签名；official=true 官方认证；vip=true 大会员（B站）。
+用户会给出一段筛选描述，请综合昵称、签名、账号特征从列表中选出符合描述的账号。
 
 输出要求：严格输出 JSON 数组，不要输出任何其它文字或 markdown 代码块标记。
 格式：["uid1","uid2"]
@@ -212,13 +233,16 @@
 `;
 
   const PRESET_MODES = {
-    borderline: {
-      label: '擦边检测',
-      prompt: `你是一个社交媒体账号审查助手。下面是用户的关注账号列表（JSON 数组，字段：uid、name 昵称、sign 简介签名）。
-请选出具有「擦边/软色情」特征的账号，判断依据包括：
-- 昵称或简介含性暗示、挑逗、诱惑性文字或谐音擦边词
-- 强调身材/颜值诱惑、大尺度内容暗示（如「私密」「福利」「源」等诱导话术）
-- 打美女/帅哥引流招牌、内容定位明显靠性张力吸粉
+borderline: {
+label: '擦边检测',
+prompt: `你是一个社交媒体账号审查助手。下面是用户的关注账号列表（JSON 数组，字段见说明）。
+请选出具有「擦边/软色情/低俗引流」特征的账号，判断依据（参考抖音恶意营销号治理规范）：
+- 昵称或签名含性暗示、挑逗、诱惑性文字或谐音擦边词
+- 强调身材/颜值诱惑、大尺度内容暗示（如「私密」「福利」「源」「完整版」等诱导话术）
+- 昵称暧昧+大量装饰符号（🌸💞♦️类）、「单身/离异/交友/处对象」标签
+- 表面挂「穿搭/舞蹈/摄影/情感」标签，实则明显靠性张力引流吸粉
+- 签名引导到站外私域（微信变体、二维码暗语）
+注意：正常舞蹈/健身/穿搭创作者、官方媒体号不算擦边，不要误伤。
 
 输出要求：严格输出 JSON 数组，不要输出任何其它文字或 markdown 代码块标记。
 格式：["uid1","uid2"]
@@ -227,14 +251,16 @@
 账号列表：
 `,
     },
-    watch: {
-      label: '常看程度',
-      prompt: `你是一个社交媒体关注列表分析助手。下面是用户关注的部分账号（JSON 数组，字段：uid、name 昵称、sign 简介签名）。
-请选出「用户大概率已经不常看/无感」的账号，判断依据包括：
-- 一次性活动号、节日号、事件号（关注理由已消失）
+watch: {
+label: '常看程度',
+prompt: `你是一个社交媒体关注列表分析助手。下面是用户关注的部分账号（JSON 数组，字段见说明）。
+请选出「用户大概率已经不常看/无感」的账号，判断依据：
+- 一次性活动号、节日号、事件号（如某个活动/婚礼/比赛专门开的号，关注理由已消失）
 - 内容小众且与日常兴趣明显不符、无持续关注价值
-- 简介有停更说明、僵尸迹象、或纯转发搬运无原创
-注意：真实姓名的疑似朋友、明显优质创作者不要选。
+- 签名有停更说明、久未更新迹象、或纯转发搬运无原创
+- 疑似批量营销号/AI 批量生成内容、三无小号
+- 签名与昵称完全看不出内容方向、无法产生持续价值
+注意：昵称像真实姓名的疑似好友、明显优质垂直创作者（含认证号/大会员）、正常生活记录号不要选。
 
 输出要求：严格输出 JSON 数组，不要输出任何其它文字或 markdown 代码块标记。
 格式：["uid1","uid2"]
@@ -245,9 +271,10 @@
     },
   };
 
-  const DOMAIN_PROMPT = `你是一个社交媒体账号分析助手。下面是用户的关注账号列表（JSON 数组，字段：uid、name 昵称、sign 简介签名）。
-请给每个账号打一个内容领域标签，参考标签：美食、科技、影视、健身、游戏、音乐、知识、生活记录、明星娱乐、新闻资讯、宠物、美妆穿搭、带货营销、其他。
-要求：领域名不超过 6 个字，优先使用参考标签；无法判断时用「其他」。
+  const DOMAIN_PROMPT = `你是一个社交媒体账号分析助手。下面是用户的关注账号列表（JSON 数组，字段见说明）。
+请给每个账号打一个内容领域标签，参考以下类目体系（参考飞瓜数据/新抖的达人分类）：
+美食、美妆、穿搭时尚、颜值、剧情段子、搞笑、音乐、舞蹈、游戏、动漫、影视综艺、明星娱乐、三农、汽车、数码科技、知识科普、财经、房产、母婴育儿、教育培训、体育、健身、旅游户外、宠物、情感、职场、家居生活、艺术绘画、Vlog日常、带货直播、新闻资讯、公益正能量。
+要求：领域名不超过 6 个字，优先使用上述参考标签（B站 UP主可按 B站分区归类：如鬼畜归搞笑、番剧归动漫）；无法判断时用「其他」。
 
 输出要求：严格输出 JSON 数组，不要输出任何其它文字或 markdown 代码块标记。
 格式：[{"uid":"账号uid","category":"领域名"}]
@@ -281,9 +308,9 @@
       S.filterProgress = { done, total: targets.length };
       render();
 
-      const payload = chunk.map(a => ({ uid: a.uid, name: a.name, sign: (a.sign || '').slice(0, 60) }));
-      const messages = [
-        { role: 'system', content: '你是严谨的筛选器，只输出要求的 JSON。' },
+const payload = buildAiPayload(chunk);
+const messages = [
+{ role: 'system', content: '你是严谨的筛选器，只输出要求的 JSON。' },
         { role: 'user', content: promptText + JSON.stringify(payload) },
       ];
 
@@ -373,11 +400,11 @@
       S.filterProgress = { done, total: targets.length };
       render();
 
-      const payload = chunk.map(a => ({ uid: a.uid, name: a.name, sign: (a.sign || '').slice(0, 60) }));
-      const messages = [
-        { role: 'system', content: '你是严谨的分类器，只输出要求的 JSON。' },
-        { role: 'user', content: DOMAIN_PROMPT + JSON.stringify(payload) },
-      ];
+const payload = buildAiPayload(chunk);
+const messages = [
+{ role: 'system', content: '你是严谨的分类器，只输出要求的 JSON。' },
+{ role: 'user', content: DOMAIN_PROMPT + JSON.stringify(payload) },
+];
 
       let resp;
       try {
@@ -665,7 +692,7 @@
             <input type="checkbox" data-uid="${esc(a.uid)}" data-role="chk" ${a.checked ? 'checked' : ''}>
             ${a.avatar ? `<img src="${esc(a.avatar)}" referrerpolicy="no-referrer" onerror="this.style.visibility='hidden'">` : ''}
             <div class="n">
-              <div class="nm">${esc(a.name)}</div>
+              <div class="nm">${esc(a.name)}${(a.raw && a.raw.official) ? ' <span class="aiuf-tag v">认证</span>' : ''}${(a.raw && a.raw.vip) ? ' <span class="aiuf-tag p">大会员</span>' : ''}</div>
               ${a.sign ? `<div class="sg">${esc(a.sign)}</div>` : ''}
             </div>
             <select data-uid="${esc(a.uid)}" data-role="cat">${options}</select>

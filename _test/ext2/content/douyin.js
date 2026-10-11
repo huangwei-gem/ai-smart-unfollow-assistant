@@ -237,7 +237,7 @@
             name: u.nickname || '抖音用户',
             sign: (u.signature || '').replace(/\s+/g, ' ').trim(),
             avatar: u.avatar || '',
-            raw: { viaApi: true },
+            raw: { viaApi: true, mutual: u.each_follow === true || u.each_follow === 'true' },
           });
         }
         if (onProgress) onProgress({ phase: 'fetch', done: accounts.length, total });

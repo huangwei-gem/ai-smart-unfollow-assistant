@@ -184,3 +184,8 @@
 }
 .aiuf-pill:hover:not(:disabled) { background: #eceefe; border-color: #b9baf7; transform: translateY(-1px); }
 .aiuf-pill:disabled { opacity: .5; cursor: not-allowed; }
+
+/* 账号徽标：互关 / 认证 / 大会员 */
+.aiuf-acct .nm .aiuf-tag{display:inline-block;margin-left:6px;padding:0 5px;border-radius:4px;font-size:10px;line-height:16px;vertical-align:1px;background:#eef2ff;color:#4f6bff;font-weight:600}
+.aiuf-acct .nm .aiuf-tag.v{background:#fff4e5;color:#d97a06}
+.aiuf-acct .nm .aiuf-tag.p{background:#ffeff5;color:#ff4d8d}
